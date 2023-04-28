@@ -8,12 +8,12 @@ async function bootstrap() {
 
 	app.enableCors();
 
-	await app.listen(4000, () => {
+	await app.listen(process.env.API_GATEWAY_PORT, () => {
 		const logger = new Logger("Bootstrap");
 
 		logger.verbose(`
       |----------------------------------------------------------------------|
-      |       🎧 Server listening -> http://localhost:4000           |
+      |    🎧 Server listening -> http://localhost:${process.env.API_GATEWAY_PORT} |
       |----------------------------------------------------------------------|
 			|      🏪 PG Admin -> http://localhost:15432          |
       |----------------------------------------------------------------------|

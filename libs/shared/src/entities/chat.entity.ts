@@ -1,9 +1,11 @@
 import {
 	Column,
 	Entity,
+	JoinColumn,
 	JoinTable,
 	ManyToMany,
 	OneToMany,
+	OneToOne,
 	PrimaryGeneratedColumn,
 	UpdateDateColumn
 } from "typeorm";
@@ -23,11 +25,11 @@ export class Chat {
 	@JoinTable({
 		name: "chats_has_users",
 		joinColumn: {
-			name: "chatId",
+			name: "chat_id",
 			referencedColumnName: "id"
 		},
 		inverseJoinColumn: {
-			name: "userId",
+			name: "user_id",
 			referencedColumnName: "id"
 		}
 	})
@@ -35,4 +37,8 @@ export class Chat {
 
 	@OneToMany(() => Message, message => message.chat)
 	messages: Message[];
+
+	@OneToOne(() => Message)
+	@JoinColumn({ name: "last_message_id", referencedColumnName: "id" })
+	last_message: Message;
 }

@@ -19,6 +19,6 @@ async function bootstrap() {
 	);
 	await app.startAllMicroservices();
 
-	await app.listen(5000);
+	await app.listen(process.env.PRESENCE_SERVICE_PORT);
 }
 bootstrap();

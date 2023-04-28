@@ -1,5 +1,4 @@
-import { CacheInterceptor } from "@nestjs/cache-manager";
-import { Controller, UseInterceptors } from "@nestjs/common";
+import { Controller } from "@nestjs/common";
 import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices";
 
 import { RabbitMQService } from "@app/rabbitmq";
@@ -15,7 +14,6 @@ export class PresenceController {
 	) {}
 
 	@MessagePattern({ cmd: "get-connected-user-by-id" })
-	@UseInterceptors(CacheInterceptor)
 	async getConnectedUserById(
 		@Ctx() context: RmqContext,
 		@Payload() payload: { id: User["id"] }

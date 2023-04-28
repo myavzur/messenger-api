@@ -14,11 +14,12 @@ export class RedisService {
 	}
 
 	async set(key: string, value: unknown, ttl = 0) {
-		this.logger.debug(`SET ${key} from REDIS`);
+		this.logger.debug(`SET ${key} to REDIS`);
 		await this.cache.set(key, value, ttl);
 	}
 
 	async delete(key: string) {
+		this.logger.debug(`DELETE ${key} from REDIS`);
 		await this.cache.del(key);
 	}
 

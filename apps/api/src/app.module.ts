@@ -20,6 +20,11 @@ const CWD = process.cwd();
 			service: "AUTH_SERVICE",
 			queue: process.env.RABBITMQ_AUTH_QUEUE
 		}),
+		// TODO: Remove
+		RabbitMQModule.register({
+			service: "CHAT_SERVICE",
+			queue: process.env.RABBITMQ_CHAT_QUEUE
+		}),
 		RabbitMQModule.register({
 			service: "PRESENCE_SERVICE",
 			queue: process.env.RABBITMQ_PRESENCE_QUEUE

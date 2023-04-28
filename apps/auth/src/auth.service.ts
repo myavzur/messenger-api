@@ -26,8 +26,8 @@ export class AuthService {
 	// * Authentication
 	async register(
 		payload: RegisterDto
-	): Promise<{ user: User; accessToken: string }> {
-		if (payload.password !== payload.passwordConfirmation) {
+	): Promise<{ user: User; access_token: string }> {
+		if (payload.password !== payload.password_confirmation) {
 			throw new BadRequestException("Passwords didn't match.");
 		}
 
@@ -49,10 +49,10 @@ export class AuthService {
 
 		delete user.password;
 
-		return { user, accessToken: accessToken };
+		return { user, access_token: accessToken };
 	}
 
-	async login(payload: LoginDto): Promise<{ user: User; accessToken: string }> {
+	async login(payload: LoginDto): Promise<{ user: User; access_token: string }> {
 		const user = await this.findByEmail(payload.email);
 
 		if (!user) {
@@ -67,7 +67,7 @@ export class AuthService {
 
 		delete user.password;
 
-		return { user, accessToken: accessToken };
+		return { user, access_token: accessToken };
 	}
 
 	// * Friend requests
@@ -156,7 +156,7 @@ export class AuthService {
 	async findByEmail(email: User["email"]): Promise<User> {
 		return await this.userRepository.findOne({
 			where: { email },
-			select: ["id", "account_name", "first_name", "last_name", "password"]
+			select: ["id", "account_name", "first_name", "last_name", "email", "password"]
 		});
 	}
 

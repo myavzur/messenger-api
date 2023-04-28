@@ -40,27 +40,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		const token = extractTokenFromHeaders(socket.handshake.headers);
 
 		if (!token) {
-			this.handleDisconnect(socket);
-			return null;
+			return socket.disconnect(true);
 		}
 
 		const ob$ = this.authService.send<UserAccessToken>(
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
-		const decodedToken = await firstValueFrom(ob$).catch(e => this.logger.error(e));
+		const tokenPayload = await firstValueFrom(ob$).catch(e => this.logger.error(e));
 
-		if (!decodedToken || !decodedToken.user) {
-			this.handleDisconnect(socket);
-			return null;
+		if (!tokenPayload || !tokenPayload.user) {
+			return socket.disconnect(true);
 		}
 
-		socket.data.user = decodedToken.user;
-		await this.setConnectedUser(socket);
+		socket.data.user = tokenPayload.user;
+
+		await this.chatService.setConnectedUser({
+			socketId: socket.id,
+			userId: tokenPayload.user.id
+		});
 	}
 
 	async handleDisconnect(socket: UserSocket) {
 		this.logger.debug("Disconnect handled.");
+
+		if (socket.data?.user) {
+			await this.chatService.deleteConnectedUserById(socket.data.user.id);
+		}
 	}
 
 	// * Client events
@@ -68,43 +74,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		// TODO: Delete or Refactor
-		const user = socket.data?.user;
-		if (!user) return null;
-
-		const message = await this.chatService.createMessage(user.id, newMessage);
+		const message = await this.chatService.createMessage(
+			socket.data.user.id,
+			newMessage
+		);
 
 		// Send message to friend if he is connected to chat server by WebSockets.
-		const connectedFriend = await this.getConnectedUserById(newMessage.friendId);
+		const connectedFriend = await this.chatService.getConnectedUserById(
+			newMessage.friendId
+		);
 
 		if (connectedFriend) {
 			this.server.to(connectedFriend.socketId).emit("new-message", {
 				message,
-				from_user_id: user.id,
+				from_user_id: socket.data.user.id,
 				chat_id: newMessage.chatId
 			});
 		}
-	}
-
-	// * Helpers
-	async setConnectedUser(socket: UserSocket) {
-		const user = socket.data?.user;
-
-		if (!user || !user.id) return null;
-
-		const connectedUser: ConnectedUser = {
-			userId: user.id,
-			socketId: socket.id
-		};
-
-		await this.cache.set(`chat-user ${user.id}`, connectedUser);
-	}
-
-	async getConnectedUserById(
-		userId: User["id"]
-	): Promise<ConnectedUser | undefined> {
-		return (await this.cache.get(`chat-user ${userId}`)) as
-			| ConnectedUser
-			| undefined;
 	}
 }

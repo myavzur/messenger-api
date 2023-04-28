@@ -1,10 +1,17 @@
-import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
+import {
+	IsEmail,
+	IsOptional,
+	IsString,
+	MaxLength,
+	MinLength
+} from "class-validator";
 
 export class RegisterDto {
 	@IsEmail({}, { message: "Email isn't valid." })
 	@MaxLength(60, { message: "Email couldn't be larger than 60 symbols!" })
 	email: string;
 
+	@IsOptional()
 	@IsString({ message: "Login must be a string!" })
 	@MinLength(2, { message: 'Login cant"t be less than 2 symbols.' })
 	@MaxLength(30, { message: `Name can't be larger than 30 symbols!` })
@@ -16,5 +23,5 @@ export class RegisterDto {
 	password: string;
 
 	@IsString({ message: "Password confirmation must be a string! What a mess." })
-	passwordConfirmation: string;
+	password_confirmation: string;
 }

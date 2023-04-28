@@ -19,6 +19,6 @@ async function bootstrap() {
 	);
 	await app.startAllMicroservices();
 
-	await app.listen(6000);
+	await app.listen(process.env.CHAT_SERVICE_PORT);
 }
 bootstrap();

@@ -13,6 +13,7 @@ import {
 import { ClientProxy } from "@nestjs/microservices";
 import { LoginDto } from "apps/auth/src/dto";
 import { RegisterDto } from "apps/auth/src/dto/register.dto";
+import { CreateMessageDto } from "apps/chat/src/dto";
 
 import { User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
@@ -23,6 +24,7 @@ import { UserRequest } from "@app/shared/interfaces";
 export class AppController {
 	constructor(
 		@Inject("AUTH_SERVICE") private authService: ClientProxy,
+		@Inject("CHAT_SERVICE") private chatService: ClientProxy,
 		@Inject("PRESENCE_SERVICE") private presenceService: ClientProxy
 	) {}
 
@@ -34,8 +36,9 @@ export class AppController {
 
 	@Get("auth/me")
 	@UseGuards(AuthGuard)
-	async getMe() {
-		return this.authService.send({ cmd: "get-me" }, {});
+	@UseInterceptors(UserInterceptor)
+	async getUser(@Req() request: UserRequest) {
+		return this.authService.send({ cmd: "get-user-by-id" }, { id: request.user.id });
 	}
 
 	@Post("auth/register")
@@ -46,13 +49,6 @@ export class AppController {
 	@Post("auth/login")
 	async login(@Body(new ValidationPipe()) dto: LoginDto) {
 		return this.authService.send({ cmd: "login" }, dto);
-	}
-
-	// * Presence
-	@Get("presence")
-	@UseGuards(AuthGuard)
-	async getPresence() {
-		return this.presenceService.send({ cmd: "get-presence" }, {});
 	}
 
 	// * Friend requests
@@ -78,6 +74,28 @@ export class AppController {
 			{
 				fromUserId: request.user.id,
 				toUserId: id
+			}
+		);
+	}
+
+	// * Chats
+	@Get("chats")
+	@UseGuards(AuthGuard)
+	@UseInterceptors(UserInterceptor)
+	async getChats(@Req() request: UserRequest) {
+		return this.chatService.send({ cmd: "get-chats" }, { userId: request.user.id });
+	}
+
+	// TODO: Remove
+	@Post("chats/messages")
+	@UseGuards(AuthGuard)
+	@UseInterceptors(UserInterceptor)
+	async createMessage(@Req() request: UserRequest, @Body() dto: CreateMessageDto) {
+		return this.chatService.send(
+			{ cmd: "create-message" },
+			{
+				userId: request.user.id,
+				message: dto
 			}
 		);
 	}

@@ -1,0 +1,124 @@
+version: '3'
+services:
+  # MESSAGE BROKER
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    env_file:
+      - .env
+
+  # DATABASE
+  postgres:
+    container_name: postgres
+    image: postgres:15
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+    - ./database/data:/var/lib/postgresql/data # If something goes wrong with container - data would be still saved in local machine inside of db/data
+
+  # DATABASE - GUI
+  postgres_admin:
+    container_name: postgres_admin
+    image: dpage/pgadmin4
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    ports:
+      - "15432:80"
+
+  # DATABASE - Caching
+  redis:
+    container_name: redis
+    image: redis
+    env_file:
+      - .env
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data # Same as for postgres
+    command: /bin/sh -c "redis-server --requirepass $$REDIS_PASSWORD" # Passwords taken from .env
+
+  # MICROSERVICE - Authorization
+  auth_microservice:
+    container_name: auth_microservice
+    build:
+      context: ./
+      dockerfile: ./apps/auth/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres
+    volumes:
+      - .:/usr/src/app # Any change to base folder should be reflected.
+      - /usr/src/app/node_modules # Take node_modules from docker container.
+    command: npm run start:dev auth # Overrides CMD from Dockerfile
+
+  # MICROSERVICE - Presence
+  presence_microservice:
+    container_name: presence_microservice
+    build:
+      context: ./
+      dockerfile: ./apps/presence/Dockerfile
+    ports:
+      - 5000:5000
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres
+      - redis
+    volumes:
+      - .:/usr/src/app # Any change to base folder should be reflected.
+      - /usr/src/app/node_modules # Take node_modules from docker container.
+    command: npm run start:dev presence # Overrides CMD from Dockerfile
+
+  # MICROSERVICE - Presence
+  chat_microservice:
+    container_name: chat_microservice
+    build:
+      context: ./
+      dockerfile: ./apps/chat/Dockerfile
+    ports:
+      - 6000:6000
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres
+      - redis
+    volumes:
+      - .:/usr/src/app # Any change to base folder should be reflected.
+      - /usr/src/app/node_modules # Take node_modules from docker container.
+    command: npm run start:dev chat # Overrides CMD from Dockerfile
+
+  # APPLICATION
+  api:
+    container_name: api
+    build:
+      context: ./
+      dockerfile: ./apps/api/Dockerfile
+    ports:
+      - 4000:4000
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - auth_microservice
+      - presence_microservice
+    volumes:
+      - .:/usr/src/app # Any change to base folder should be reflected.
+      - /usr/src/app/node_modules # Take node_modules from docker container.
+    command: npm run start:dev api # Overrides CMD from Dockerfile
+
+volumes:
+  rabbitmq_data:

@@ -1,0 +1,5 @@
+# Database migrations.
+**/migrations/*
+
+# Not sure if this is necessary.
+database/**/*

@@ -22,10 +22,37 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Running with Docker 🐋
+
+```bash
+# build and run
+$ docker-compose up --build
+```
+
+## Administrating 👨🏻‍💻
+
+(with default `.env`)
+
+### Software ⚙️
+
+- _`RabbitMQ`_ is running on default `5672` port
+- _`PostgreSQL`_ is running on default `5432` port
+- _`Redis`_ is running on default `6379` port
+
+
+### GUI 📈
+
+- [HTTP:15672](http://localhost:15672) - _`RabbitMQ - Management`_
+- [HTTP:15432](http://localhost:15432) - _`PostgreSQL Admin`_
+
+### Microservices 🖥
+
+- [HTTP:4000](http://localhost:4000) - _`API Gateway`_
+- AMQP - _`Authorization && Authentication Service`_
+- [WS:5000](#) | AMQP - _`Presence Service`_
+- [WS:6000](#) | AMQP - _`Chat && Messages Service`_
 ## Installation
 
 ```bash

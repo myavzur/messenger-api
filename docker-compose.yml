@@ -2,7 +2,6 @@ version: '3'
 services:
   # MESSAGE BROKER
   rabbitmq:
-    container_name: rabbitmq
     image: rabbitmq:3-management
     hostname: rabbitmq
     volumes:
@@ -15,7 +14,6 @@ services:
 
   # DATABASE
   postgres:
-    container_name: postgres
     image: postgres:15
     env_file:
       - .env
@@ -26,7 +24,6 @@ services:
 
   # DATABASE - GUI
   postgres_admin:
-    container_name: postgres_admin
     image: dpage/pgadmin4
     depends_on:
       - postgres
@@ -37,7 +34,6 @@ services:
 
   # DATABASE - Caching
   redis:
-    container_name: redis
     image: redis
     env_file:
       - .env
@@ -49,7 +45,6 @@ services:
 
   # MICROSERVICE - Authorization
   auth_microservice:
-    container_name: auth_microservice
     build:
       context: ./
       dockerfile: ./apps/auth/Dockerfile
@@ -65,7 +60,6 @@ services:
 
   # MICROSERVICE - Presence
   presence_microservice:
-    container_name: presence_microservice
     build:
       context: ./
       dockerfile: ./apps/presence/Dockerfile
@@ -84,7 +78,6 @@ services:
 
   # MICROSERVICE - Presence
   chat_microservice:
-    container_name: chat_microservice
     build:
       context: ./
       dockerfile: ./apps/chat/Dockerfile
@@ -103,7 +96,6 @@ services:
 
   # APPLICATION
   api:
-    container_name: api
     build:
       context: ./
       dockerfile: ./apps/api/Dockerfile

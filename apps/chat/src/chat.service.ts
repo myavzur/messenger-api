@@ -43,16 +43,16 @@ export class ChatService {
 
 	// * Chats
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
-		let chat;
+		let chat = null;
 
 		// Find chat if chatId was passed.
 		if (payload.chatId) {
 			chat = await this.findChatById(payload.chatId);
 		}
 
-		// Create conversation if chat not exists and friendId was passed.
-		if (!chat && payload.friendId) {
-			chat = await this.createConversation(userId, payload.friendId);
+		// Create conversation if chat not exists and toUserId was passed.
+		if (!chat && payload.toUserId) {
+			chat = await this.createConversation(userId, payload.toUserId);
 		}
 
 		// No chat was created or found.
@@ -71,7 +71,6 @@ export class ChatService {
 			`Everything have gone well. Message for chat:${chat.id} was created.`
 		);
 
-		// TODO: Вынести в отдельную функцию updateChat
 		const updatedChat = await this.chatRepository.save({
 			...chat,
 			last_message: message
@@ -88,43 +87,43 @@ export class ChatService {
 	}
 
 	/** Creates conversation between two users. */
-	private async createConversation(userId: User["id"], friendId: User["id"]) {
+	private async createConversation(userId: User["id"], withUserId: User["id"]) {
 		this.logger.log(
-			`Creating conversation between two users user:${userId} and user:${friendId}`
+			`Creating conversation between two users user:${userId} and user:${withUserId}`
 		);
 		const user = await this.getUserById(userId);
-		const friend = await this.getUserById(friendId);
+		const withUser = await this.getUserById(withUserId);
 
-		if (!user || !friend) return null;
+		if (!user || !withUser) return null;
 
-		const conversation = await this.findConversation(userId, friendId);
+		const conversation = await this.findConversation(userId, withUserId);
 
 		if (!conversation) {
 			return await this.chatRepository.save({
-				users: [user, friend]
+				users: [user, withUser]
 			});
 		}
 
 		this.logger.log(
-			`Conversation between user:${user.account_name} and friend:${friend.account_name} already exists.`
+			`Conversation between user:${user.account_name} and friend:${withUser.account_name} already exists.`
 		);
 	}
 
 	// * Repository
 	/** Find conversation between two users. */
-	private async findConversation(userId: User["id"], friendId: User["id"]) {
+	private async findConversation(userId: User["id"], toUserId: User["id"]) {
 		return await this.chatRepository
 			.createQueryBuilder("chat")
 			.leftJoin("chat.users", "user")
-			.where("user.id IN (:userId, :friendId)", { userId, friendId })
+			.where("user.id IN (:userId, :toUserId)", { userId, toUserId })
 			.groupBy("chat.id")
 			.having("COUNT(*) = 2")
 			.getOne();
 	}
 
 	/** Find chats where user consists of.
-	 * - Returns chat.users without object of userId.
-	 */
+		 * @returns chat.users without object of userId.
+		 */
 	private async findChats(userId: User["id"]) {
 		// Get chats where {userId} is a member.
 		const subquery = await this.chatRepository

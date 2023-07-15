@@ -46,27 +46,6 @@ export class AuthController {
 		return await this.authService.login(payload);
 	}
 
-	// * Friend Requests
-	@MessagePattern({ cmd: "get-friend-requests" })
-	async getFriendRequests(
-		@Ctx() context: RmqContext,
-		@Payload() payload: { forUserId: User["id"] }
-	) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.authService.getFriendRequests(payload);
-	}
-
-	@MessagePattern({ cmd: "create-friend-request" })
-	async createFriendRequest(
-		@Ctx() context: RmqContext,
-		@Payload() payload: { fromUserId: User["id"]; toUserId: User["id"] }
-	) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.authService.createFriendRequest(payload);
-	}
-
 	// * Security - Tokens
 	@MessagePattern({ cmd: "verify-access-token" })
 	async verifyAccessToken(

@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import * as path from "path";
 
-import { FriendRequest, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { Chat } from "@app/shared/entities/chat.entity";
 import { Message } from "@app/shared/entities/message.entity";
 
@@ -22,7 +22,7 @@ const CWD = process.cwd();
 			useFactory: (configService: ConfigService) => ({
 				type: "postgres",
 				url: configService.get("POSTGRES_URI"),
-				entities: [User, FriendRequest, Chat, Message],
+				entities: [User, Chat, Message],
 				/*
 					Using {synchronize: true} in production will cause losing data.
 					For production use migrations instead. (`npm run migration:generate -- apps/auth/database/migrations/InitDatabase`, `npm run migration:run`, etc...)

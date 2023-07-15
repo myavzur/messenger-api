@@ -6,7 +6,8 @@ import * as path from "path";
 
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
-import { FriendRequest, User } from "@app/shared/entities";
+
+import { User } from "@app/shared/entities";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -34,7 +35,7 @@ const CWD = process.cwd();
 		RabbitMQModule,
 		PostgresModule,
 
-		TypeOrmModule.forFeature([User, FriendRequest])
+		TypeOrmModule.forFeature([User])
 	],
 	controllers: [AuthController],
 	providers: [AuthService]

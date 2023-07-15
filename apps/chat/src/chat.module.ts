@@ -6,7 +6,7 @@ import * as path from "path";
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
-import { Chat, FriendRequest, Message, User } from "@app/shared/entities";
+import { Chat, Message, User } from "@app/shared/entities";
 
 import { ChatController } from "./chat.controller";
 import { ChatGateway } from "./chat.gateway";
@@ -20,7 +20,7 @@ const CWD = process.cwd();
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
-		TypeOrmModule.forFeature([User, FriendRequest, Chat, Message]),
+		TypeOrmModule.forFeature([User, Chat, Message]),
 
 		RedisModule,
 		PostgresModule,

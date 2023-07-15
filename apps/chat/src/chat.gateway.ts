@@ -33,9 +33,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	server: Server;
 	logger: Logger = new Logger(ChatGateway.name);
 
+	async onModuleInit() {
+		await this.cache.reset();
+		this.logger.debug("Chat cache was reset.");
+	}
+
 	// * Connection handlers
 	async handleConnection(socket: UserSocket) {
-		this.logger.debug("Connection handled.");
+		this.logger.debug("[handleConnection]: Connection handled.");
 
 		const token = extractTokenFromHeaders(socket.handshake.headers);
 
@@ -62,9 +67,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	async handleDisconnect(socket: UserSocket) {
-		this.logger.debug("Disconnect handled.");
+		this.logger.debug("[handleDisconnect]: Disconnect handled.");
 
 		if (socket.data?.user) {
+			this.logger.debug("[handleDisconnect]: Deleting connection from cache.");
 			await this.chatService.deleteConnectedUserById(socket.data.user.id);
 		}
 	}
@@ -81,7 +87,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 		// Send message to friend if he is connected to chat server by WebSockets.
 		const connectedFriend = await this.chatService.getConnectedUserById(
-			newMessage.friendId
+			newMessage.toUserId
 		);
 
 		if (connectedFriend) {

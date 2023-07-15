@@ -5,7 +5,6 @@ import * as path from "path";
 import { RabbitMQModule } from "@app/rabbitmq";
 
 import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
 
 // Current Working Direction (node process) = messenger/api
 const CWD = process.cwd();
@@ -30,7 +29,6 @@ const CWD = process.cwd();
 			queue: process.env.RABBITMQ_PRESENCE_QUEUE
 		})
 	],
-	controllers: [AppController],
-	providers: [AppService]
+	controllers: [AppController]
 })
 export class AppModule {}

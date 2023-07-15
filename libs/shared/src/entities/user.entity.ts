@@ -2,14 +2,12 @@ import {
 	Column,
 	CreateDateColumn,
 	Entity,
-	JoinColumn,
 	ManyToMany,
 	OneToMany,
 	PrimaryGeneratedColumn
 } from "typeorm";
 
 import { Chat } from "./chat.entity";
-import { FriendRequest } from "./friend-request.entity";
 import { Message } from "./message.entity";
 
 @Entity({ name: "users" })
@@ -34,15 +32,6 @@ export class User {
 
 	@Column("varchar", { length: 255, select: false })
 	password: string;
-
-	// * Relationships
-	@OneToMany(() => FriendRequest, friend_request => friend_request.from_user)
-	@JoinColumn({ name: "id", referencedColumnName: "to_user_id" })
-	outgoing_friend_requests: FriendRequest[];
-
-	@OneToMany(() => FriendRequest, friend_request => friend_request.to_user)
-	@JoinColumn({ name: "id", referencedColumnName: "from_channel_id" })
-	incoming_friend_requests: FriendRequest[];
 
 	@ManyToMany(() => Chat, chat => chat.users)
 	chats: Chat[];

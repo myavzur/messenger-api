@@ -21,6 +21,9 @@ export class Chat {
 	@UpdateDateColumn()
 	updated_at: Date;
 
+	@Column({ nullable: true })
+	title: string;
+
 	@ManyToMany(() => User)
 	@JoinTable({
 		name: "chats_has_users",

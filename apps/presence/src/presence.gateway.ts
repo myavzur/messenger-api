@@ -11,7 +11,7 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { FriendRequest, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken, UserSocket } from "@app/shared/interfaces";
 
@@ -30,15 +30,14 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	server: Server;
 	logger: Logger = new Logger(PresenceGateway.name);
 
-	// TODO: Remove in production (need for development)
 	async onModuleInit() {
 		await this.cache.reset();
-		this.logger.debug("Socket cache was restarted.");
+		this.logger.debug("Presence cache was reset.");
 	}
 
 	// * Connections
 	async handleConnection(socket: UserSocket) {
-		this.logger.debug("Connection handled.");
+		this.logger.debug("[handleConnection]: Connection handled.");
 
 		const token = extractTokenFromHeaders(socket.handshake.headers);
 
@@ -78,10 +77,6 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	}
 
 	// * Statuses
-	/**
-	 * Setting socket in cache || Updating it with new user status.
-	 * - Fires `emitStatusToFriends` inside.
-	 */
 	private async changeUserStatus(socket: UserSocket, status: ConnectedUserStatus) {
 		const user = socket.data?.user;
 
@@ -90,61 +85,25 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 			return null;
 		}
 
-		await this.emitStatusToFriends(socket.data.user.id, status);
+		await this.emitStatusToUserChats(socket.data.user.id, status);
 	}
 
-	/**
-	 * Emits `friend-changed-status` for all of user's friends.
-	 * Also emits `friend-changed-status` to user so he will know in what status his friends are in now.
-	 */
-	private async emitStatusToFriends(
+	/** Emits `user-changed-status` for all chats where userId consists of. */
+	private async emitStatusToUserChats(
 		userId: User["id"],
 		status: ConnectedUserStatus
 	) {
-		this.logger.debug("[emitStatusToFriends]: Emmiting...");
+		this.logger.debug("[emitStatusToUserChats]: Emitting...");
 
 		const user = await this.presenceService.getConnectedUserById(userId);
-		const friends = await this.getFriends(userId);
+		const userChats = await this.getUserChats(userId);
 
-		for (const f of friends) {
-			const friend = await this.presenceService.getConnectedUserById(f.id);
-
-			if (!friend) continue;
-
-			// Send event to my friends that I'm currently connected (online).
-			this.server.to(friend.socketId).emit("friend-changed-status", {
-				userId,
-				status
-			});
-
-			/*
-				Since we don't store user's statuses in users table,
-				we want to get their statuses on socket initialization
-				based on their socket connection.
-			*/
-			if (user) {
-				this.server.to(user.socketId).emit("friend-changed-status", {
-					userId: friend.userId,
-					status: friend.status
-				});
-			}
-		}
+		this.logger.debug(userChats);
 	}
 
 	// * Helpers
-	private async getFriends(forUserId: User["id"]) {
-		const ob$ = this.authService.send<FriendRequest[]>(
-			{ cmd: "get-friend-requests" },
-			{ forUserId }
-		);
-
-		const friendsRequests = await firstValueFrom(ob$).catch(e =>
-			this.logger.error(e)
-		);
-
-		if (!friendsRequests) return null;
-
-		return friendsRequests.map(friendRequest => friendRequest.from_user);
+	private async getUserChats(userId: User["id"]) {
+		return 1
 	}
 
 	// * Client events

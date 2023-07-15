@@ -8,7 +8,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
 import { Repository } from "typeorm";
 
-import { FriendRequest, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { UserAccessToken } from "@app/shared/interfaces";
 
 import { LoginDto, RegisterDto } from "./dto";
@@ -18,8 +18,6 @@ export class AuthService {
 	constructor(
 		@InjectRepository(User)
 		private readonly userRepository: Repository<User>,
-		@InjectRepository(FriendRequest)
-		private readonly friendRequestRepository: Repository<FriendRequest>,
 		private readonly jwtService: JwtService
 	) {}
 
@@ -68,45 +66,6 @@ export class AuthService {
 		delete user.password;
 
 		return { user, access_token: accessToken };
-	}
-
-	// * Friend requests
-	async createFriendRequest(payload: {
-		fromUserId: User["id"];
-		toUserId: User["id"];
-	}) {
-		const toUser = await this.findById(payload.toUserId);
-
-		if (!toUser) {
-			throw new BadRequestException();
-		}
-
-		const friendRequest = await this.friendRequestRepository.findOne({
-			where: [
-				{ from_user: { id: payload.fromUserId } },
-				{ to_user: { id: payload.toUserId } }
-			]
-		});
-
-		if (friendRequest) {
-			throw new BadRequestException();
-		}
-
-		return await this.friendRequestRepository.save({
-			from_user: { id: payload.fromUserId },
-			to_user: { id: payload.toUserId }
-		});
-	}
-
-	async getFriendRequests(payload: { forUserId: User["id"] }) {
-		return await this.friendRequestRepository.find({
-			where: {
-				to_user: { id: payload.forUserId }
-			},
-			relations: {
-				from_user: true
-			}
-		});
 	}
 
 	// * Security - Passwords

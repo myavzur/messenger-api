@@ -51,33 +51,6 @@ export class AppController {
 		return this.authService.send({ cmd: "login" }, dto);
 	}
 
-	// * Friend requests
-	@Get("friend-requests")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async getFriendRequests(@Req() request: UserRequest) {
-		return this.authService.send(
-			{ cmd: "get-friend-requests" },
-			{ forUserId: request.user.id }
-		);
-	}
-
-	@Post("friend-requests/:id")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async createFriendRequest(
-		@Req() request: UserRequest,
-		@Param("id") id: User["id"]
-	) {
-		return this.authService.send(
-			{ cmd: "create-friend-request" },
-			{
-				fromUserId: request.user.id,
-				toUserId: id
-			}
-		);
-	}
-
 	// * Chats
 	@Get("chats")
 	@UseGuards(AuthGuard)
@@ -86,7 +59,6 @@ export class AppController {
 		return this.chatService.send({ cmd: "get-chats" }, { userId: request.user.id });
 	}
 
-	// TODO: Remove
 	@Post("chats/messages")
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)

@@ -44,7 +44,7 @@ services:
     command: /bin/sh -c "redis-server --requirepass $$REDIS_PASSWORD" # Passwords taken from .env
 
   # MICROSERVICE - Authorization
-  auth_microservice:
+  authorization:
     build:
       context: ./
       dockerfile: ./apps/auth/Dockerfile
@@ -59,7 +59,7 @@ services:
     command: npm run start:dev auth # Overrides CMD from Dockerfile
 
   # MICROSERVICE - Presence
-  presence_microservice:
+  presence:
     build:
       context: ./
       dockerfile: ./apps/presence/Dockerfile
@@ -77,7 +77,7 @@ services:
     command: npm run start:dev presence # Overrides CMD from Dockerfile
 
   # MICROSERVICE - Presence
-  chat_microservice:
+  chat:
     build:
       context: ./
       dockerfile: ./apps/chat/Dockerfile
@@ -95,7 +95,7 @@ services:
     command: npm run start:dev chat # Overrides CMD from Dockerfile
 
   # APPLICATION
-  api:
+  api-gateway:
     build:
       context: ./
       dockerfile: ./apps/api/Dockerfile
@@ -105,9 +105,9 @@ services:
       - .env
     depends_on:
       - rabbitmq
-      - auth_microservice
-      - presence_microservice
-      - chat_microservice
+      - authorization
+      - presence
+      - chat
     volumes:
       - .:/usr/src/app # Any change to base folder should be reflected.
       - /usr/src/app/node_modules # Take node_modules from docker container.

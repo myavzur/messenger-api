@@ -103,7 +103,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 	// * Helpers
 	private async getUserChats(userId: User["id"]) {
-		return 1
+		return 1;
 	}
 
 	// * Client events

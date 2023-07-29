@@ -126,8 +126,8 @@ export class ChatService {
 	}
 
 	/** Find chats where user consists of.
-		 * @returns chat.users without object of userId.
-		 */
+	 * @returns chat.users without object of userId.
+	 */
 	public async findChats(payload: GetChatsPayload): Promise<PaginatedChatsDto> {
 		// Get chats where {userId} is a member.
 		const chatsSubquery = await this.chatRepository
@@ -137,9 +137,12 @@ export class ChatService {
 			.where("user.id = :userId", { userId: payload.userId })
 			.getQuery();
 
-		const limit = (payload.limit <= MAX_CHATS_LIMIT_PER_PAGE) ? payload.limit : MAX_CHATS_LIMIT_PER_PAGE;
-		const page = (payload.page >= 1) ? payload.page : 1;
-		
+		const limit =
+			payload.limit <= MAX_CHATS_LIMIT_PER_PAGE
+				? payload.limit
+				: MAX_CHATS_LIMIT_PER_PAGE;
+		const page = payload.page >= 1 ? payload.page : 1;
+
 		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.chatRepository
 			.createQueryBuilder("chat")

@@ -17,12 +17,12 @@ import { ClientProxy } from "@nestjs/microservices";
 import { LoginDto } from "apps/auth/src/dto";
 import { RegisterDto } from "apps/auth/src/dto/register.dto";
 import { CreateMessageDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetChatPayload, GetChatsPayload } from "apps/chat/src/interfaces";
 
+import { Chat, User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";
-import { GetChatPayload, GetChatsPayload } from "apps/chat/src/interfaces";
-import { Chat, User } from "@app/shared/entities";
 
 @Controller()
 export class AppController {
@@ -61,12 +61,12 @@ export class AppController {
 	@UseInterceptors(UserInterceptor)
 	async getChats(
 		@Req() request: UserRequest,
-		@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-		@Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+		@Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+		@Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number
 	) {
 		return this.chatService.send<PaginatedChatsDto, GetChatsPayload>(
-			{ cmd: "get-chats" }, 
-			{ 
+			{ cmd: "get-chats" },
+			{
 				userId: request.user.id,
 				page,
 				limit
@@ -74,13 +74,10 @@ export class AppController {
 		);
 	}
 
-	@Get('chats/id/:id')
+	@Get("chats/id/:id")
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)
-	async getChat(
-		@Req() request: UserRequest,
-		@Param('id') id: Chat['id']
-	) {
+	async getChat(@Req() request: UserRequest, @Param("id") id: Chat["id"]) {
 		return this.chatService.send<Chat, GetChatPayload>(
 			{ cmd: "get-chat" },
 			{

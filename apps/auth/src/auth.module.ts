@@ -6,7 +6,6 @@ import * as path from "path";
 
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
-
 import { User } from "@app/shared/entities";
 
 import { AuthController } from "./auth.controller";

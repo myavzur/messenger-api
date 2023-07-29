@@ -77,14 +77,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	// * Client events
 	@SubscribeMessage("get-chats")
-	async handleGetChats(socket: UserSocket, payload: Omit<GetChatsPayload, 'userId'>) {
+	async handleGetChats(
+		socket: UserSocket,
+		payload: Omit<GetChatsPayload, "userId">
+	) {
 		const chatsData = await this.chatService.findChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
 		});
 
-		socket.emit('get-chats', chatsData);
+		socket.emit("get-chats", chatsData);
 	}
 
 	@SubscribeMessage("send-message")
@@ -105,6 +108,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 				from_user_id: socket.data.user.id,
 				chat_id: updatedChat.id
 			});
-		})
+		});
 	}
 }

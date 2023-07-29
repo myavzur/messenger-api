@@ -1,13 +1,13 @@
 // item.dto.ts
-import { Expose } from 'class-transformer';
+import { Expose } from "class-transformer";
 
 export class PaginatedItemsDto {
-  @Expose()
-  currentPage: number;
+	@Expose()
+	currentPage: number;
 
-  @Expose()
-  totalPages: number;
+	@Expose()
+	totalPages: number;
 
-  @Expose()
-  totalItems: number;
-};
+	@Expose()
+	totalItems: number;
+}

@@ -5,7 +5,8 @@ import { RabbitMQService } from "@app/rabbitmq";
 import { Chat, User } from "@app/shared/entities";
 
 import { ChatService } from "./chat.service";
-import { CreateMessageDto } from "./dto";
+import { CreateMessageDto, PaginatedChatsDto } from "./dto";
+import { GetChatPayload, GetChatsPayload } from "./interfaces";
 
 @Controller()
 export class ChatController {
@@ -15,13 +16,23 @@ export class ChatController {
 	) {}
 
 	@MessagePattern({ cmd: "get-chats" })
-	async getChatsByUserId(
+	async getChats(
 		@Ctx() context: RmqContext,
-		@Payload() payload: { userId: User["id"] }
-	): Promise<Chat[]> {
+		@Payload() payload: GetChatsPayload
+	): Promise<PaginatedChatsDto> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getChats(payload.userId);
+		return await this.chatService.findChats(payload);
+	}
+
+	@MessagePattern({ cmd: "get-chat" })
+	async getChat(
+		@Ctx() context: RmqContext,
+		@Payload() payload: GetChatPayload
+	): Promise<Chat> {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.chatService.getChat(payload);
 	}
 
 	@MessagePattern({ cmd: "create-message" })

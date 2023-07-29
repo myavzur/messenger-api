@@ -18,7 +18,7 @@ import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
 import { CreateMessageDto } from "./dto";
-import { ConnectedUser } from "./interfaces";
+import { ConnectedUser, GetChatsPayload } from "./interfaces";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -76,26 +76,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	// * Client events
+	@SubscribeMessage("get-chats")
+	async handleGetChats(socket: UserSocket, payload: Omit<GetChatsPayload, 'userId'>) {
+		const chatsData = await this.chatService.findChats({
+			userId: socket.data.user.id,
+			limit: payload.limit,
+			page: payload.page
+		});
+
+		socket.emit('get-chats', chatsData);
+	}
+
 	@SubscribeMessage("send-message")
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const message = await this.chatService.createMessage(
+		const { message, updatedChat } = await this.chatService.createMessage(
 			socket.data.user.id,
 			newMessage
 		);
 
-		// Send message to friend if he is connected to chat server by WebSockets.
-		const connectedFriend = await this.chatService.getConnectedUserById(
-			newMessage.toUserId
-		);
+		updatedChat.users.forEach(async user => {
+			const connectedUser = await this.chatService.getConnectedUserById(user.id);
+			if (!connectedUser) return;
 
-		if (connectedFriend) {
-			this.server.to(connectedFriend.socketId).emit("new-message", {
+			this.server.to(connectedUser.socketId).emit("new-message", {
 				message,
 				from_user_id: socket.data.user.id,
-				chat_id: newMessage.chatId
+				chat_id: updatedChat.id
 			});
-		}
+		})
 	}
 }

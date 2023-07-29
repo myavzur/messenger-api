@@ -7,8 +7,10 @@ import { Repository } from "typeorm";
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
 
-import { CreateMessageDto } from "./dto";
-import { ConnectedUser } from "./interfaces";
+import { CreateMessageDto, PaginatedChatsDto } from "./dto";
+import { ConnectedUser, GetChatPayload, GetChatsPayload } from "./interfaces";
+
+const MAX_CHATS_LIMIT_PER_PAGE = 100;
 
 @Injectable()
 export class ChatService {
@@ -42,6 +44,16 @@ export class ChatService {
 	}
 
 	// * Chats
+	async getChat(payload: GetChatPayload) {
+		const chat = await this.chatRepository.findOneBy({ id: payload.id });
+		const isMember = Boolean(chat.users.find(user => user.id === payload.userId));
+
+		// TODO: Error
+		// If user isn't a member of requested chat - don't return this chat.
+		if (!isMember) return null;
+		return chat;
+	}
+
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
 		let chat = null;
 
@@ -67,23 +79,15 @@ export class ChatService {
 			chat
 		});
 
-		this.logger.log(
-			`Everything have gone well. Message for chat:${chat.id} was created.`
-		);
-
-		const updatedChat = await this.chatRepository.save({
+		const updatedChat: Chat = await this.chatRepository.save({
 			...chat,
 			last_message: message
 		});
 
-		this.logger.log(`Chat updated.`);
-		console.log(updatedChat);
-
-		return message;
-	}
-
-	async getChats(userId: User["id"]) {
-		return await this.findChats(userId);
+		return {
+			message,
+			updatedChat
+		};
 	}
 
 	/** Creates conversation between two users. */
@@ -124,26 +128,40 @@ export class ChatService {
 	/** Find chats where user consists of.
 		 * @returns chat.users without object of userId.
 		 */
-	private async findChats(userId: User["id"]) {
+	public async findChats(payload: GetChatsPayload): Promise<PaginatedChatsDto> {
 		// Get chats where {userId} is a member.
-		const subquery = await this.chatRepository
-			.createQueryBuilder("subquery")
-			.select("subquery.id")
-			.innerJoin("subquery.users", "user")
-			.where("user.id = :userId", { userId })
+		const chatsSubquery = await this.chatRepository
+			.createQueryBuilder("chatsSubquery")
+			.select("chatsSubquery.id")
+			.innerJoin("chatsSubquery.users", "user")
+			.where("user.id = :userId", { userId: payload.userId })
 			.getQuery();
 
+		const limit = (payload.limit <= MAX_CHATS_LIMIT_PER_PAGE) ? payload.limit : MAX_CHATS_LIMIT_PER_PAGE;
+		const page = (payload.page >= 1) ? payload.page : 1;
+		
 		// Get chats with filtered chat.users (without {userId}).
-		return await this.chatRepository
+		const [chats, totalChats] = await this.chatRepository
 			.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.users", "user")
 			.leftJoinAndSelect("chat.messages", "message")
 			.leftJoinAndSelect("chat.last_message", "last_message")
 			.leftJoinAndSelect("message.user", "message_user")
-			.where(`chat.id IN (${subquery})`)
-			.andWhere("user.id != :userId", { userId })
+			.where(`chat.id IN (${chatsSubquery})`)
+			.andWhere("user.id != :userId", { userId: payload.userId })
 			.orderBy("chat.updated_at", "DESC")
-			.getMany();
+			.skip((page - 1) * limit)
+			.take(limit)
+			.getManyAndCount();
+
+		const totalPages = Math.ceil(totalChats / limit);
+
+		return {
+			chats,
+			totalItems: totalChats,
+			totalPages,
+			currentPage: page
+		};
 	}
 
 	private async findChatById(chatId: Chat["id"]) {

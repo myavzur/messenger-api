@@ -11,14 +11,14 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { User } from "@app/shared/entities";
+import { Chat, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
 import { CreateMessageDto } from "./dto";
-import { ConnectedUser, GetChatsPayload } from "./interfaces";
+import { ConnectedUser, GetChatPayload, GetChatsPayload } from "./interfaces";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -81,13 +81,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		socket: UserSocket,
 		payload: Omit<GetChatsPayload, "userId">
 	) {
-		const chatsData = await this.chatService.findChats({
+		const chats = await this.chatService.findChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
 		});
 
-		socket.emit("get-chats", chatsData);
+		socket.emit("chats", chats);
+	}
+
+	@SubscribeMessage("get-chat")
+	async handleGetChat(socket: UserSocket, payload: Chat['id']) {
+		const chat = await this.chatService.getChat({
+			userId: socket.data.user.id,
+			chatId: payload
+		});
+
+		socket.emit("chat", { chat });
 	}
 
 	@SubscribeMessage("send-message")

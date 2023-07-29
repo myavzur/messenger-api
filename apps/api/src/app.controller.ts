@@ -82,7 +82,7 @@ export class AppController {
 			{ cmd: "get-chat" },
 			{
 				userId: request.user.id,
-				id
+				chatId: id
 			}
 		);
 	}

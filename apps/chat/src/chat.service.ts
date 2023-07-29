@@ -45,7 +45,7 @@ export class ChatService {
 
 	// * Chats
 	async getChat(payload: GetChatPayload) {
-		const chat = await this.chatRepository.findOneBy({ id: payload.id });
+		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
 		const isMember = Boolean(chat.users.find(user => user.id === payload.userId));
 
 		// TODO: Error
@@ -63,8 +63,8 @@ export class ChatService {
 		}
 
 		// Create conversation if chat not exists and toUserId was passed.
-		if (!chat && payload.toUserId) {
-			chat = await this.createConversation(userId, payload.toUserId);
+		if (!chat && payload.userId) {
+			chat = await this.createConversation(userId, payload.userId);
 		}
 
 		// No chat was created or found.

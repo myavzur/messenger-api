@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
 import { firstValueFrom } from "rxjs";
@@ -7,10 +7,13 @@ import { Repository } from "typeorm";
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
 
-import { CreateMessageDto, PaginatedChatsDto } from "./dto";
-import { ConnectedUser, GetChatPayload, GetChatsPayload } from "./interfaces";
+import { GetChatDto, GetChatsDto, CreateMessageDto, PaginatedChatsDto, PaginatedMessagesDto } from "./dto";
+import { ConnectedUser } from "./interfaces";
+import { GetChatHistoryDto } from "./dto/get-chat-history.dto";
+import { pagination } from "@app/shared/helpers";
 
-const MAX_CHATS_LIMIT_PER_PAGE = 100;
+const MAX_CHATS_LIMIT_PER_PAGE = 20;
+const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 
 @Injectable()
 export class ChatService {
@@ -44,50 +47,94 @@ export class ChatService {
 	}
 
 	// * Chats
-	async getChat(payload: GetChatPayload) {
-		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
-		const isMember = Boolean(chat.users.find(user => user.id === payload.userId));
+	async getChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
+		return await this.findChats(payload);
+	}
+
+	/** Get base information about chat: id, updated_at, title, users */
+	async getChat(payload: GetChatDto): Promise<Chat> {
+		const chat = await this.chatRepository.findOne({
+			where: {
+				id: payload.chatId
+			},
+			relations: { users: true }
+		});
+
+		const isParticipant = Boolean(chat.users.find(user => user.id === payload.userId));
 
 		// TODO: Error
 		// If user isn't a member of requested chat - don't return this chat.
-		if (!isMember) return null;
+		if (!isParticipant) return null;
 		return chat;
 	}
 
+	/** Get messages from chat */
+	async getChatHistory(payload: GetChatHistoryDto): Promise<PaginatedMessagesDto> {
+		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
+		if (!chat) return null;
+
+		const limit = pagination.getLimit(payload.limit, MAX_CHAT_HISTORY_LIMIT_PER_PAGE);
+		const page = pagination.getPage(payload.page);
+
+		const [ messages, totalMessages ] = await this.messageRepository.findAndCount({
+			where: { chat: {id: chat.id} },
+			order: { created_at: "DESC" },
+			skip: (page - 1) * limit,
+			take: limit,
+			relations: {
+				user: true
+			}
+		});
+
+		const totalPages = Math.ceil(totalMessages / limit);
+		
+		return {
+			messages,
+			totalItems: totalMessages,
+			totalPages,
+			currentPage: page
+		};
+	}
+
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
-		let chat = null;
+		let chat: Chat | null = null;
 
 		// Find chat if chatId was passed.
 		if (payload.chatId) {
 			chat = await this.findChatById(payload.chatId);
-		}
-
-		// Create conversation if chat not exists and toUserId was passed.
-		if (!chat && payload.userId) {
+		}	else if (payload.userId) {
 			chat = await this.createConversation(userId, payload.userId);
-		}
-
-		// No chat was created or found.
-		if (!chat) {
+		}	else {
 			this.logger.log(`No chat was created or found.`);
 			return null;
 		}
 
-		const message = await this.messageRepository.save({
+		// * Message
+		let message = await this.messageRepository.save({
 			user: { id: userId },
 			text: payload.text,
 			chat
 		});
 
-		const updatedChat: Chat = await this.chatRepository.save({
+		// Get message with creator
+		message = await this.messageRepository.findOne({
+			where: { id: message.id },
+			relations: { user: true }
+		});
+
+		// * Chat
+		chat = await this.chatRepository.save({
 			...chat,
 			last_message: message
 		});
 
-		return {
-			message,
-			updatedChat
-		};
+		// Get chat with participants
+		chat = await this.chatRepository.findOne({
+			where: { id: chat.id },
+			relations: { users: true }
+		});
+
+		return { message, chat };
 	}
 
 	/** Creates conversation between two users. */
@@ -128,7 +175,7 @@ export class ChatService {
 	/** Find chats where user consists of.
 	 * @returns chat.users without object of userId.
 	 */
-	public async findChats(payload: GetChatsPayload): Promise<PaginatedChatsDto> {
+	private async findChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
 		// Get chats where {userId} is a member.
 		const chatsSubquery = await this.chatRepository
 			.createQueryBuilder("chatsSubquery")
@@ -137,11 +184,8 @@ export class ChatService {
 			.where("user.id = :userId", { userId: payload.userId })
 			.getQuery();
 
-		const limit =
-			payload.limit <= MAX_CHATS_LIMIT_PER_PAGE
-				? payload.limit
-				: MAX_CHATS_LIMIT_PER_PAGE;
-		const page = payload.page >= 1 ? payload.page : 1;
+		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
+		const page = pagination.getPage(payload.page);
 
 		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.chatRepository

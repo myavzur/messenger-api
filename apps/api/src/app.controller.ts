@@ -17,7 +17,7 @@ import { ClientProxy } from "@nestjs/microservices";
 import { LoginDto } from "apps/auth/src/dto";
 import { RegisterDto } from "apps/auth/src/dto/register.dto";
 import { CreateMessageDto, PaginatedChatsDto } from "apps/chat/src/dto";
-import { GetChatPayload, GetChatsPayload } from "apps/chat/src/interfaces";
+import { GetChatDto, GetChatsDto } from "apps/chat/src/dto";
 
 import { Chat, User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
@@ -64,7 +64,7 @@ export class AppController {
 		@Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
 		@Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number
 	) {
-		return this.chatService.send<PaginatedChatsDto, GetChatsPayload>(
+		return this.chatService.send<PaginatedChatsDto, GetChatsDto>(
 			{ cmd: "get-chats" },
 			{
 				userId: request.user.id,
@@ -78,7 +78,7 @@ export class AppController {
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)
 	async getChat(@Req() request: UserRequest, @Param("id") id: Chat["id"]) {
-		return this.chatService.send<Chat, GetChatPayload>(
+		return this.chatService.send<Chat, GetChatDto>(
 			{ cmd: "get-chat" },
 			{
 				userId: request.user.id,

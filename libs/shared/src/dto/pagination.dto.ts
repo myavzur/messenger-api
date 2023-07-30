@@ -1,7 +1,12 @@
 // item.dto.ts
 import { Expose } from "class-transformer";
 
-export class PaginatedItemsDto {
+export class Paginatable {
+	page: number;
+	limit: number;
+};
+
+export class PaginatedDto {
 	@Expose()
 	currentPage: number;
 

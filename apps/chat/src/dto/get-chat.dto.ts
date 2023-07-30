@@ -1,6 +1,6 @@
 import { Chat, User } from "@app/shared/entities";
 
-export interface GetChatPayload {
+export class GetChatDto {
 	userId: User["id"];
 	chatId: Chat["id"];
 }

@@ -11,14 +11,12 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { Chat, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
-import { CreateMessageDto } from "./dto";
-import { ConnectedUser, GetChatPayload, GetChatsPayload } from "./interfaces";
+import { GetChatDto, GetChatHistoryDto, GetChatsDto, CreateMessageDto } from "./dto";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -79,9 +77,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	@SubscribeMessage("get-chats")
 	async handleGetChats(
 		socket: UserSocket,
-		payload: Omit<GetChatsPayload, "userId">
+		payload: Omit<GetChatsDto, "userId">
 	) {
-		const chats = await this.chatService.findChats({
+		const chats = await this.chatService.getChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
@@ -91,33 +89,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat")
-	async handleGetChat(socket: UserSocket, payload: Chat['id']) {
+	async handleGetChat(socket: UserSocket, payload: Omit<GetChatDto, 'userId'>) {
 		const chat = await this.chatService.getChat({
 			userId: socket.data.user.id,
-			chatId: payload
+			chatId: payload.chatId
 		});
 
 		socket.emit("chat", { chat });
+	}
+
+	@SubscribeMessage("get-chat-history")
+	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
+		const history = await this.chatService.getChatHistory(payload);
+		socket.emit('chat-history', { 
+			chat_id: payload.chatId,
+			...history, 
+		});
 	}
 
 	@SubscribeMessage("send-message")
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const { message, updatedChat } = await this.chatService.createMessage(
-			socket.data.user.id,
-			newMessage
-		);
+		const { chat, message } = await this.chatService.createMessage(socket.data.user.id,	newMessage);
 
-		updatedChat.users.forEach(async user => {
+		chat.users.forEach(async user => {
 			const connectedUser = await this.chatService.getConnectedUserById(user.id);
 			if (!connectedUser) return;
-
-			this.server.to(connectedUser.socketId).emit("new-message", {
-				message,
-				from_user_id: socket.data.user.id,
-				chat_id: updatedChat.id
-			});
+			this.server.to(connectedUser.socketId).emit("new-message", { chat_id: chat.id, message });
 		});
 	}
 }

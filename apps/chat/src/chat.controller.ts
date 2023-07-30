@@ -6,7 +6,7 @@ import { Chat, User } from "@app/shared/entities";
 
 import { ChatService } from "./chat.service";
 import { CreateMessageDto, PaginatedChatsDto } from "./dto";
-import { GetChatPayload, GetChatsPayload } from "./interfaces";
+import { GetChatDto, GetChatsDto } from "./dto";
 
 @Controller()
 export class ChatController {
@@ -18,17 +18,17 @@ export class ChatController {
 	@MessagePattern({ cmd: "get-chats" })
 	async getChats(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatsPayload
+		@Payload() payload: GetChatsDto
 	): Promise<PaginatedChatsDto> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.findChats(payload);
+		return await this.chatService.getChats(payload);
 	}
 
 	@MessagePattern({ cmd: "get-chat" })
 	async getChat(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatPayload
+		@Payload() payload: GetChatDto
 	): Promise<Chat> {
 		this.rabbitmqService.acknowledgeMessage(context);
 

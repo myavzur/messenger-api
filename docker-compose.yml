@@ -95,7 +95,7 @@ services:
     command: npm run start:dev chat # Overrides CMD from Dockerfile
 
   # APPLICATION
-  api-gateway:
+  gateway:
     build:
       context: ./
       dockerfile: ./apps/api/Dockerfile

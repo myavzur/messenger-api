@@ -92,7 +92,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			chatId: payload.chatId
 		});
 
-		socket.emit("chat", { chat });
+		socket.emit("chat", chat);
 	}
 
 	@SubscribeMessage("get-chat-history")

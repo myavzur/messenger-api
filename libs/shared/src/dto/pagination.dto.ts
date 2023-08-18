@@ -4,7 +4,7 @@ import { Expose } from "class-transformer";
 export class Paginatable {
 	page: number;
 	limit: number;
-};
+}
 
 export class PaginatedDto {
 	@Expose()

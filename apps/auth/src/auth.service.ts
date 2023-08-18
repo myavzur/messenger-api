@@ -6,20 +6,35 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
-import { Repository } from "typeorm";
 
 import { User } from "@app/shared/entities";
 import { UserAccessToken } from "@app/shared/interfaces";
+import { UserRepository } from "@app/shared/repositories";
 
 import { LoginDto, RegisterDto } from "./dto";
 
 @Injectable()
 export class AuthService {
 	constructor(
-		@InjectRepository(User)
-		private readonly userRepository: Repository<User>,
+		@InjectRepository(UserRepository)
+		private readonly userRepository: UserRepository,
 		private readonly jwtService: JwtService
 	) {}
+
+	// * Users
+	async getUsers() {
+		return await this.userRepository.findAll();
+	}
+
+	async getUsersLikeAccountName(
+		account_name: User["account_name"]
+	): Promise<User[]> {
+		return this.userRepository.findManyLikeAccountName(account_name);
+	}
+
+	async getUserById(id: User["id"]) {
+		return this.userRepository.findOneById(id);
+	}
 
 	// * Authentication
 	async register(
@@ -29,7 +44,7 @@ export class AuthService {
 			throw new BadRequestException("Passwords didn't match.");
 		}
 
-		const oldUser = await this.findByEmail(payload.email);
+		const oldUser = await this.userRepository.findOneByEmail(payload.email);
 
 		if (oldUser) {
 			throw new BadRequestException("An account with that email already exists.");
@@ -51,7 +66,7 @@ export class AuthService {
 	}
 
 	async login(payload: LoginDto): Promise<{ user: User; access_token: string }> {
-		const user = await this.findByEmail(payload.email);
+		const user = await this.userRepository.findOneByEmail(payload.email);
 
 		if (!user) {
 			throw new BadRequestException();
@@ -83,10 +98,8 @@ export class AuthService {
 	// * Security - Tokens
 	async generateAccessToken(user: User): Promise<string> {
 		return await this.jwtService.signAsync({
-			user: {
-				id: user.id
-			}
-		});
+			user: { id: user.id }
+		} as UserAccessToken);
 	}
 
 	async verifyAccessToken({ token }: { token: string }): Promise<UserAccessToken> {
@@ -103,24 +116,5 @@ export class AuthService {
 		} catch (e) {
 			throw new BadRequestException();
 		}
-	}
-
-	// * Helpers
-	async findUsers(): Promise<User[]> {
-		return await this.userRepository.find();
-	}
-
-	/** Returns User with `password` column. */
-	async findByEmail(email: User["email"]): Promise<User> {
-		return await this.userRepository.findOne({
-			where: { email },
-			select: ["id", "account_name", "email", "password"]
-		});
-	}
-
-	async findById(id: User["id"]): Promise<User> {
-		return await this.userRepository.findOne({
-			where: { id }
-		});
 	}
 }

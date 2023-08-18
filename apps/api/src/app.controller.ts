@@ -32,12 +32,23 @@ export class AppController {
 		@Inject("PRESENCE_SERVICE") private presenceService: ClientProxy
 	) {}
 
-	// * Auth
-	@Get("auth")
+	// * Users
+	@Get("users")
 	async getUsers() {
 		return this.authService.send({ cmd: "get-users" }, {});
 	}
 
+	@Get("users/search")
+	async getUsersLikeAccountName(
+		@Query("account_name") account_name: User["account_name"]
+	) {
+		return this.authService.send(
+			{ cmd: "get-users-like-account-name" },
+			{ account_name }
+		);
+	}
+
+	// * Auth
 	@Get("auth/me")
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)

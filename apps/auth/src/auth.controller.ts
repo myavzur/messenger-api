@@ -14,6 +14,24 @@ export class AuthController {
 		private readonly rabbitmqService: RabbitMQService
 	) {}
 
+	// * Users
+	@MessagePattern({ cmd: "get-users" })
+	async getUsers(@Ctx() context: RmqContext) {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.authService.getUsers();
+	}
+
+	@MessagePattern({ cmd: "get-users-like-account-name" })
+	async getUsersLikeAccountName(
+		@Ctx() context: RmqContext,
+		@Payload() payload: { account_name: User["account_name"] }
+	) {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.authService.getUsersLikeAccountName(payload.account_name);
+	}
+
 	@MessagePattern({ cmd: "get-user-by-id" })
 	async getUserById(
 		@Ctx() context: RmqContext,
@@ -21,14 +39,7 @@ export class AuthController {
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.authService.findById(payload.id);
-	}
-
-	@MessagePattern({ cmd: "get-users" })
-	async getUsers(@Ctx() context: RmqContext) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.authService.findUsers();
+		return await this.authService.getUserById(payload.id);
 	}
 
 	// * Auth

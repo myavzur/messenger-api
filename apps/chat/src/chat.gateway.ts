@@ -16,7 +16,7 @@ import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
-import { GetChatDto, GetChatHistoryDto, GetChatsDto, CreateMessageDto } from "./dto";
+import { CreateMessageDto, GetChatDto, GetChatHistoryDto, GetChatsDto } from "./dto";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -75,10 +75,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	// * Client events
 	@SubscribeMessage("get-chats")
-	async handleGetChats(
-		socket: UserSocket,
-		payload: Omit<GetChatsDto, "userId">
-	) {
+	async handleGetChats(socket: UserSocket, payload: Omit<GetChatsDto, "userId">) {
 		const chats = await this.chatService.getChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
@@ -89,7 +86,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat")
-	async handleGetChat(socket: UserSocket, payload: Omit<GetChatDto, 'userId'>) {
+	async handleGetChat(socket: UserSocket, payload: Omit<GetChatDto, "userId">) {
 		const chat = await this.chatService.getChat({
 			userId: socket.data.user.id,
 			chatId: payload.chatId
@@ -101,9 +98,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	@SubscribeMessage("get-chat-history")
 	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
 		const history = await this.chatService.getChatHistory(payload);
-		socket.emit('chat-history', { 
+		socket.emit("chat-history", {
 			chat_id: payload.chatId,
-			...history, 
+			...history
 		});
 	}
 
@@ -111,12 +108,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const { chat, message } = await this.chatService.createMessage(socket.data.user.id,	newMessage);
+		const { chat, message } = await this.chatService.createMessage(
+			socket.data.user.id,
+			newMessage
+		);
 
 		chat.users.forEach(async user => {
 			const connectedUser = await this.chatService.getConnectedUserById(user.id);
 			if (!connectedUser) return;
-			this.server.to(connectedUser.socketId).emit("new-message", { chat_id: chat.id, message });
+			this.server
+				.to(connectedUser.socketId)
+				.emit("new-message", { chat_id: chat.id, message });
 		});
 	}
 }

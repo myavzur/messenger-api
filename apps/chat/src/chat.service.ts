@@ -6,11 +6,17 @@ import { Repository } from "typeorm";
 
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
-
-import { GetChatDto, GetChatsDto, CreateMessageDto, PaginatedChatsDto, PaginatedMessagesDto } from "./dto";
-import { ConnectedUser } from "./interfaces";
-import { GetChatHistoryDto } from "./dto/get-chat-history.dto";
 import { pagination } from "@app/shared/helpers";
+
+import {
+	CreateMessageDto,
+	GetChatDto,
+	GetChatsDto,
+	PaginatedChatsDto,
+	PaginatedMessagesDto
+} from "./dto";
+import { GetChatHistoryDto } from "./dto/get-chat-history.dto";
+import { ConnectedUser } from "./interfaces";
 
 const MAX_CHATS_LIMIT_PER_PAGE = 20;
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
@@ -60,7 +66,9 @@ export class ChatService {
 			relations: { users: true }
 		});
 
-		const isParticipant = Boolean(chat.users.find(user => user.id === payload.userId));
+		const isParticipant = Boolean(
+			chat.users.find(user => user.id === payload.userId)
+		);
 
 		// TODO: Error
 		// If user isn't a member of requested chat - don't return this chat.
@@ -73,11 +81,14 @@ export class ChatService {
 		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
 		if (!chat) return null;
 
-		const limit = pagination.getLimit(payload.limit, MAX_CHAT_HISTORY_LIMIT_PER_PAGE);
+		const limit = pagination.getLimit(
+			payload.limit,
+			MAX_CHAT_HISTORY_LIMIT_PER_PAGE
+		);
 		const page = pagination.getPage(payload.page);
 
-		const [ messages, totalMessages ] = await this.messageRepository.findAndCount({
-			where: { chat: {id: chat.id} },
+		const [messages, totalMessages] = await this.messageRepository.findAndCount({
+			where: { chat: { id: chat.id } },
 			order: { created_at: "DESC" },
 			skip: (page - 1) * limit,
 			take: limit,
@@ -87,7 +98,7 @@ export class ChatService {
 		});
 
 		const totalPages = Math.ceil(totalMessages / limit);
-		
+
 		return {
 			messages,
 			totalItems: totalMessages,
@@ -102,9 +113,9 @@ export class ChatService {
 		// Find chat if chatId was passed.
 		if (payload.chatId) {
 			chat = await this.findChatById(payload.chatId);
-		}	else if (payload.userId) {
+		} else if (payload.userId) {
 			chat = await this.createConversation(userId, payload.userId);
-		}	else {
+		} else {
 			this.logger.log(`No chat was created or found.`);
 			return null;
 		}

@@ -10,7 +10,7 @@ async function bootstrap() {
 
 	await app.listen(process.env.API_GATEWAY_PORT, () => {
 		const logger = new Logger("Bootstrap");
-		logger.log('Started successfully.');
+		logger.log("Started successfully.");
 	});
 }
 bootstrap();

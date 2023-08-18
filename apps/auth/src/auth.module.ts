@@ -7,6 +7,7 @@ import * as path from "path";
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { User } from "@app/shared/entities";
+import { UserRepository } from "@app/shared/repositories";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
@@ -37,6 +38,6 @@ const CWD = process.cwd();
 		TypeOrmModule.forFeature([User])
 	],
 	controllers: [AuthController],
-	providers: [AuthService]
+	providers: [AuthService, UserRepository]
 })
 export class AuthModule {}

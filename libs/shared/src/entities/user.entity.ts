@@ -24,12 +24,6 @@ export class User {
 	@Column("varchar", { length: 30, unique: true })
 	account_name: string;
 
-	@Column("varchar", { length: 80, nullable: true })
-	first_name: string;
-
-	@Column("varchar", { length: 80, nullable: true })
-	last_name: string;
-
 	@Column("varchar", { length: 255, select: false })
 	password: string;
 

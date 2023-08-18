@@ -23,14 +23,14 @@ services:
     - ./database/data:/var/lib/postgresql/data # If something goes wrong with container - data would be still saved in local machine inside of db/data
 
   # DATABASE - GUI
-  postgres_admin:
-    image: dpage/pgadmin4
-    depends_on:
-      - postgres
-    env_file:
-      - .env
-    ports:
-      - "15432:80"
+  # postgres_admin:
+  #   image: dpage/pgadmin4
+  #   depends_on:
+  #     - postgres
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "15432:80"
 
   # DATABASE - Caching
   redis:

@@ -82,7 +82,6 @@ export class AuthService {
 
 	// * Security - Tokens
 	async generateAccessToken(user: User): Promise<string> {
-		// TODO: Типизировать токен
 		return await this.jwtService.signAsync({
 			user: {
 				id: user.id
@@ -115,7 +114,7 @@ export class AuthService {
 	async findByEmail(email: User["email"]): Promise<User> {
 		return await this.userRepository.findOne({
 			where: { email },
-			select: ["id", "account_name", "first_name", "last_name", "email", "password"]
+			select: ["id", "account_name", "email", "password"]
 		});
 	}
 

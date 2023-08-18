@@ -7,7 +7,10 @@ import { BaseRepository } from "./base.repository.abstract";
 import { IUserRepository } from "./user.repository.interface";
 
 @Injectable()
-export class UserRepository extends BaseRepository<User> implements IUserRepository {
+export class UserRepository
+	extends BaseRepository<User>
+	implements IUserRepository
+{
 	constructor(private dataSource: DataSource) {
 		super(User, dataSource.createEntityManager());
 	}

@@ -11,6 +11,7 @@ import { Chat, Message, User } from "@app/shared/entities";
 import { ChatController } from "./chat.controller";
 import { ChatGateway } from "./chat.gateway";
 import { ChatService } from "./chat.service";
+import { ChatRepository } from "@app/shared/repositories/chat.repository";
 
 // Current Working Direction (node process) = messenger/api
 const CWD = process.cwd();
@@ -34,6 +35,6 @@ const CWD = process.cwd();
 		})
 	],
 	controllers: [ChatController],
-	providers: [ChatService, ChatGateway]
+	providers: [ChatService, ChatGateway, ChatRepository]
 })
 export class ChatModule {}

@@ -14,7 +14,7 @@ export class ChatRepository
 	implements IChatRepository
 {
 	constructor(private dataSource: DataSource) {
-		super(User, dataSource.createEntityManager());
+		super(Chat, dataSource.createEntityManager());
 	}
 
 	/** Find conversation between two users. */
@@ -25,8 +25,8 @@ export class ChatRepository
 		return await this.createQueryBuilder("chat")
 			.leftJoin("chat.users", "user")
 			.where("user.id IN (:userId, :withUserId)", { userId, withUserId })
+			.andWhere("chat.is_group = false")
 			.groupBy("chat.id")
-			.having("COUNT(*) = 2")
 			.getOne();
 	}
 
@@ -35,9 +35,9 @@ export class ChatRepository
 	  */
 	async findChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
 		// Get chats where {userId} is a member.
-		const chatsSubquery = await this.createQueryBuilder("chatsSubquery")
-			.select("chatsSubquery.id")
-			.innerJoin("chatsSubquery.users", "user")
+		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
+			.select("chatsIdsQuery.id")
+			.innerJoin("chatsIdsQuery.users", "user")
 			.where("user.id = :userId", { userId: payload.userId })
 			.getQuery();
 
@@ -46,11 +46,9 @@ export class ChatRepository
 
 		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
-			.leftJoinAndSelect("chat.messages", "message")
+			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false")
 			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("message.user", "message_user")
-			.where(`chat.id IN (${chatsSubquery})`)
+			.where(`chat.id IN (${chatsIdsQuery})`)
 			.andWhere("user.id != :userId", { userId: payload.userId })
 			.orderBy("chat.updated_at", "DESC")
 			.skip((page - 1) * limit)

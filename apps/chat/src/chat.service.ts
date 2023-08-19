@@ -86,7 +86,6 @@ export class ChatService {
 
 		const [messages, totalMessages] = await this.messageRepository.findAndCount({
 			where: { chat: { id: chat.id } },
-			order: { created_at: "DESC" },
 			skip: (page - 1) * limit,
 			take: limit,
 			relations: {
@@ -106,15 +105,13 @@ export class ChatService {
 
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
 		let chat: Chat | null = null;
+		let isCreated = false;
 
-		// Find chat if chatId was passed.
 		if (payload.chatId) {
 			chat = await this.chatRepository.findOneById(payload.chatId);
 		} else if (payload.userId) {
 			chat = await this.createConversation(userId, payload.userId);
-		} else {
-			this.logger.log(`No chat was created or found.`);
-			return null;
+			isCreated = true;
 		}
 
 		// * Message
@@ -136,13 +133,18 @@ export class ChatService {
 			last_message: message
 		});
 
-		// Get chat with participants
+		// Get chat with {users} and {last_message}
 		chat = await this.chatRepository.findOne({
 			where: { id: chat.id },
-			relations: { users: true }
+			relations: {
+				users: true,
+				last_message: true
+			}
 		});
 
-		return { message, chat };
+		this.logger.verbose(chat);
+
+		return { message, chat, isCreated };
 	}
 
 	/** Creates conversation between two users. */

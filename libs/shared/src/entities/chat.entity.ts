@@ -1,4 +1,5 @@
 import {
+	BeforeInsert,
 	Column,
 	Entity,
 	JoinColumn,
@@ -21,8 +22,18 @@ export class Chat {
 	@UpdateDateColumn()
 	updated_at: Date;
 
-	@Column({ nullable: true })
+	@Column('varchar', { length: 100, nullable: true })
 	title: string;
+
+	@Column('boolean', { default: false })
+	is_group: boolean;
+
+	@BeforeInsert()
+	updateIsGroup() {
+		if (this.users.length > 2) {
+			this.is_group = true;
+		}
+	}
 
 	@ManyToMany(() => User)
 	@JoinTable({

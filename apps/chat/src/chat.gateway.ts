@@ -108,7 +108,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const { chat, message } = await this.chatService.createMessage(
+		const { chat, message, isCreated } = await this.chatService.createMessage(
 			socket.data.user.id,
 			newMessage
 		);
@@ -119,6 +119,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			this.server
 				.to(connectedUser.socketId)
 				.emit("new-message", { chat_id: chat.id, message });
+
+			if (isCreated) {
+				this.server
+					.to(connectedUser.socketId)
+					.emit("chat-created", chat);
+			}
 		});
 	}
 }

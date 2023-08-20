@@ -46,11 +46,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			return socket.disconnect(true);
 		}
 
-		const ob$ = this.authService.send<UserAccessToken>(
+		const decodedToken$ = this.authService.send<UserAccessToken>(
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
-		const tokenPayload = await firstValueFrom(ob$).catch(e => this.logger.error(e));
+		const tokenPayload = await firstValueFrom(decodedToken$).catch(e => this.logger.error(e));
 
 		if (!tokenPayload || !tokenPayload.user) {
 			return socket.disconnect(true);

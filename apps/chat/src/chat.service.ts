@@ -112,6 +112,8 @@ export class ChatService {
 		} else if (payload.userId) {
 			chat = await this.createConversation(userId, payload.userId);
 			isCreated = true;
+		} else {
+			this.logger.log('No chat created');
 		}
 
 		// * Message

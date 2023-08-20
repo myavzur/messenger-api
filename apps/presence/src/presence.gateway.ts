@@ -45,21 +45,21 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 			return socket.disconnect(true);
 		}
 
-		const ob$ = this.authService.send<UserAccessToken>(
+		const decodedToken$ = this.authService.send<UserAccessToken>(
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
-		const tokenPayload = await firstValueFrom(ob$).catch(e => this.logger.error(e));
+		const decodedToken = await firstValueFrom(decodedToken$).catch(e => this.logger.error(e));
 
-		if (!tokenPayload || !tokenPayload.user) {
+		if (!decodedToken || !decodedToken.user) {
 			return socket.disconnect(true);
 		}
 
-		socket.data.user = tokenPayload.user;
+		socket.data.user = decodedToken.user;
 
 		await this.presenceService.setConnectedUser({
 			socketId: socket.id,
-			userId: tokenPayload.user.id,
+			userId: decodedToken.user.id,
 			status: ConnectedUserStatus.ONLINE
 		});
 

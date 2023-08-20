@@ -20,29 +20,34 @@ export class ChatRepository
 	/** Find conversation between two users. */
 	async findConversation(
 		userId: User['id'],
-		withUserId: User['id']
+		toUserId: User['id']
 	): Promise<Chat> {
-		return await this.createQueryBuilder("chat")
-			.leftJoin("chat.users", "user")
-			.where("user.id IN (:userId, :withUserId)", { userId, withUserId })
-			.andWhere("chat.is_group = false")
-			.groupBy("chat.id")
-			.getOne();
+		return await this.findOne({
+			where: {
+				users: [
+					{ id: userId },
+					{ id: toUserId }
+				],
+				is_group: false
+			},
+			relations: {
+				users: true,
+				last_message: true
+			}
+		});
 	}
 
-	/** Find chats where user consists of.
-	  * @returns chat.users without object of userId.
-	  */
+	/** Find chats where user consists of. */
 	async findChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
+		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
+		const page = pagination.getPage(payload.page);
+
 		// Get chats where {userId} is a member.
 		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
 			.select("chatsIdsQuery.id")
 			.innerJoin("chatsIdsQuery.users", "user")
 			.where("user.id = :userId", { userId: payload.userId })
 			.getQuery();
-
-		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
-		const page = pagination.getPage(payload.page);
 
 		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.createQueryBuilder("chat")

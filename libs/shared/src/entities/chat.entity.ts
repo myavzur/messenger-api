@@ -22,10 +22,10 @@ export class Chat {
 	@UpdateDateColumn()
 	updated_at: Date;
 
-	@Column('varchar', { length: 100, nullable: true })
+	@Column("varchar", { length: 100, nullable: true })
 	title: string;
 
-	@Column('boolean', { default: false })
+	@Column("boolean", { default: false })
 	is_group: boolean;
 
 	@BeforeInsert()

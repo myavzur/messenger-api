@@ -50,7 +50,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
-		const tokenPayload = await firstValueFrom(decodedToken$).catch(e => this.logger.error(e));
+		const tokenPayload = await firstValueFrom(decodedToken$).catch(e =>
+			this.logger.error(e)
+		);
 
 		if (!tokenPayload || !tokenPayload.user) {
 			return socket.disconnect(true);
@@ -121,9 +123,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 				.emit("new-message", { chat_id: chat.id, message });
 
 			if (isCreated) {
-				this.server
-					.to(connectedUser.socketId)
-					.emit("chat-created", chat);
+				this.server.to(connectedUser.socketId).emit("chat-created", chat);
 			}
 		});
 	}

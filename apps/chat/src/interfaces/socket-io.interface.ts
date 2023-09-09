@@ -1,15 +1,14 @@
 import { Chat, Message, User } from "@app/shared/entities";
 
-
 // * Server
 export interface ServerToClientEvents {
-	"chats": (data: {
+	chats: (data: {
 		chats: Chat[];
 		totalItems: number;
 		totalPages: number;
 		currentPage: number;
 	}) => void;
-	"chat": (data: Chat) => void;
+	chat: (data: Chat) => void;
 	"new-chat": (data: Chat) => void;
 	"new-message": (data: { chat_id: Chat["id"]; message: Message }) => void;
 	"chat-history": (data: {

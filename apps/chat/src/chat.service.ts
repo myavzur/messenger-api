@@ -7,6 +7,7 @@ import { Repository } from "typeorm";
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
+import { ChatRepository } from "@app/shared/repositories";
 
 import {
 	CreateMessageDto,
@@ -17,7 +18,6 @@ import {
 } from "./dto";
 import { GetChatHistoryDto } from "./dto/get-chat-history.dto";
 import { ConnectedUser } from "./interfaces";
-import { ChatRepository } from "@app/shared/repositories";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 
@@ -82,12 +82,18 @@ export class ChatService {
 		if (!chat) return null;
 
 		const page = pagination.getPage(payload.page);
-		const limit = pagination.getLimit(payload.limit, MAX_CHAT_HISTORY_LIMIT_PER_PAGE);
+		const limit = pagination.getLimit(
+			payload.limit,
+			MAX_CHAT_HISTORY_LIMIT_PER_PAGE
+		);
 
 		const [messages, totalMessages] = await this.messageRepository.findAndCount({
 			where: { chat: { id: chat.id } },
 			skip: (page - 1) * limit,
 			take: limit,
+			order: {
+				id: "DESC"
+			},
 			relations: {
 				user: true
 			}
@@ -113,7 +119,7 @@ export class ChatService {
 			chat = await this.createConversation(userId, payload.userId);
 			isCreated = true;
 		} else {
-			this.logger.log('No chat created');
+			this.logger.log("No chat created");
 		}
 
 		// * Message
@@ -144,8 +150,6 @@ export class ChatService {
 			}
 		});
 
-		this.logger.verbose(chat);
-
 		return { message, chat, isCreated };
 	}
 
@@ -159,7 +163,10 @@ export class ChatService {
 
 		if (!user || !withUser) return null;
 
-		const conversation = await this.chatRepository.findConversation(userId, withUserId);
+		const conversation = await this.chatRepository.findConversation(
+			userId,
+			withUserId
+		);
 
 		if (!conversation) {
 			return await this.chatRepository.save({

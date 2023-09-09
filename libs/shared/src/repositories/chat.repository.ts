@@ -1,33 +1,26 @@
 import { Injectable } from "@nestjs/common";
-import { BaseRepository } from "./base.repository.abstract";
-import { Chat, User } from "../entities";
-import { IChatRepository } from "./chat.repository.interface";
-import { DataSource } from "typeorm";
 import { GetChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { DataSource } from "typeorm";
+
+import { Chat, User } from "../entities";
 import { pagination } from "../helpers";
+
+import { BaseRepository } from "./base.repository.abstract";
+import { IChatRepository } from "./chat.repository.interface";
 
 const MAX_CHATS_LIMIT_PER_PAGE = 20;
 
 @Injectable()
-export class ChatRepository
-	extends BaseRepository<Chat>
-	implements IChatRepository
-{
+export class ChatRepository extends BaseRepository<Chat> implements IChatRepository {
 	constructor(private dataSource: DataSource) {
 		super(Chat, dataSource.createEntityManager());
 	}
 
 	/** Find conversation between two users. */
-	async findConversation(
-		userId: User['id'],
-		toUserId: User['id']
-	): Promise<Chat> {
+	async findConversation(userId: User["id"], toUserId: User["id"]): Promise<Chat> {
 		return await this.findOne({
 			where: {
-				users: [
-					{ id: userId },
-					{ id: toUserId }
-				],
+				users: [{ id: userId }, { id: toUserId }],
 				is_group: false
 			},
 			relations: {
@@ -69,4 +62,4 @@ export class ChatRepository
 			currentPage: page
 		};
 	}
-};
+}

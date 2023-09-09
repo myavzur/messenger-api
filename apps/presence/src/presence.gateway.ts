@@ -49,7 +49,9 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
-		const decodedToken = await firstValueFrom(decodedToken$).catch(e => this.logger.error(e));
+		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
+			this.logger.error(e)
+		);
 
 		if (!decodedToken || !decodedToken.user) {
 			return socket.disconnect(true);

@@ -118,6 +118,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		chat.users.forEach(async user => {
 			const connectedUser = await this.chatService.getConnectedUserById(user.id);
 			if (!connectedUser) return;
+
 			this.server
 				.to(connectedUser.socketId)
 				.emit("new-message", { chat_id: chat.id, message });

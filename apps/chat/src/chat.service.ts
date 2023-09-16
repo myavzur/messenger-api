@@ -11,12 +11,12 @@ import { ChatRepository } from "@app/shared/repositories";
 
 import {
 	CreateMessageDto,
-	GetChatDto,
-	GetChatsDto,
+	GetAnyChatDto,
+	GetAnyChatsDto,
 	PaginatedChatsDto,
 	PaginatedMessagesDto
 } from "./dto";
-import { GetChatHistoryDto } from "./dto/get-chat-history.dto";
+import { GetAnyChatHistoryDto } from "./dto";
 import { ConnectedUser } from "./interfaces";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
@@ -30,7 +30,7 @@ export class ChatService {
 		private readonly chatRepository: ChatRepository,
 		@InjectRepository(Message)
 		private readonly messageRepository: Repository<Message>,
-		private readonly cache: RedisService,
+		private readonly cache: RedisService
 	) {}
 
 	logger: Logger = new Logger(ChatService.name);
@@ -53,18 +53,20 @@ export class ChatService {
 	}
 
 	// * Chats
-	async getChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
-		return await this.chatRepository.findChats(payload);
+	async getAnyChats(payload: GetAnyChatsDto): Promise<PaginatedChatsDto> {
+		return await this.chatRepository.findAnyChats(payload);
 	}
 
 	/** Get base information about chat: id, updated_at, title, users */
-	async getChat(payload: GetChatDto): Promise<Chat> {
+	async getAnyChat(payload: GetAnyChatDto): Promise<Chat | null> {
 		const chat = await this.chatRepository.findOne({
 			where: {
 				id: payload.chatId
 			},
 			relations: { users: true }
 		});
+
+		if (!chat) return null;
 
 		const isParticipant = Boolean(
 			chat.users.find(user => user.id === payload.userId)
@@ -76,8 +78,10 @@ export class ChatService {
 		return chat;
 	}
 
-	/** Get messages from chat */
-	async getChatHistory(payload: GetChatHistoryDto): Promise<PaginatedMessagesDto> {
+	/** Get messages from any chat */
+	async getAnyChatHistory(
+		payload: GetAnyChatHistoryDto
+	): Promise<PaginatedMessagesDto> {
 		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
 		if (!chat) return null;
 
@@ -116,7 +120,7 @@ export class ChatService {
 		if (payload.chatId) {
 			chat = await this.chatRepository.findOneById(payload.chatId);
 		} else if (payload.userId) {
-			chat = await this.createConversation(userId, payload.userId);
+			chat = await this.createLocalChat(userId, payload.userId);
 			isCreated = true;
 		} else {
 			this.logger.log("No chat created");
@@ -153,39 +157,36 @@ export class ChatService {
 		return { message, chat, isCreated };
 	}
 
-	private async getConversations(userId: User['id']) {
-		return await this.chatRepository.findAllConversations(userId);
+	async getLocalChats(userId: User["id"]) {
+		return await this.chatRepository.findLocalChats(userId);
 	}
 
-	/** Creates conversation between two users. */
-	private async createConversation(userId: User["id"], withUserId: User["id"]) {
+	/** Creates localChat between two users. */
+	private async createLocalChat(userId: User["id"], withUserId: User["id"]) {
 		this.logger.log(
-			`Creating conversation between two users user:${userId} and user:${withUserId}`
+			`Creating localChat between two users user:${userId} and user:${withUserId}`
 		);
 		const user = await this.getUserById(userId);
 		const withUser = await this.getUserById(withUserId);
 
 		if (!user || !withUser) return null;
 
-		const conversation = await this.chatRepository.findConversation(
-			userId,
-			withUserId
-		);
+		const localChat = await this.chatRepository.findLocalChat(userId, withUserId);
 
-		if (!conversation) {
+		if (!localChat) {
 			return await this.chatRepository.save({
 				users: [user, withUser]
 			});
 		}
 
 		this.logger.log(
-			`Conversation between user:${user.account_name} and friend:${withUser.account_name} already exists.`
+			`LocalChat between user:${user.account_name} and friend:${withUser.account_name} already exists.`
 		);
 	}
 
 	// * Microservices
 	/** Get user from Auth server. */
-	private async getUserById(userId: User["id"]) {
+	public async getUserById(userId: User["id"]) {
 		const ob$ = this.authService.send<User>(
 			{ cmd: "get-user-by-id" },
 			{ id: userId }

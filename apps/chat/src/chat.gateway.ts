@@ -11,12 +11,20 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
+import { Chat, Message, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
-import { CreateMessageDto, GetChatDto, GetChatHistoryDto, GetChatsDto } from "./dto";
+import {
+	CreateMessageDto,
+	GetAnyChatDto,
+	GetAnyChatHistoryDto,
+	GetAnyChatsDto
+} from "./dto";
+
+const TEMPORARY_CHAT_ID = -1;
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -24,7 +32,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		@Inject("AUTH_SERVICE")
 		private readonly authService: ClientProxy,
 		private readonly chatService: ChatService,
-		private readonly cache: RedisService,
+		private readonly cache: RedisService
 	) {}
 
 	@WebSocketServer()
@@ -77,8 +85,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	// * Client events
 	@SubscribeMessage("get-chats")
-	async handleGetChats(socket: UserSocket, payload: Omit<GetChatsDto, "userId">) {
-		const chats = await this.chatService.getChats({
+	async handleGetAnyChats(
+		socket: UserSocket,
+		payload: Omit<GetAnyChatsDto, "userId">
+	) {
+		const chats = await this.chatService.getAnyChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
@@ -88,18 +99,40 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat")
-	async handleGetChat(socket: UserSocket, payload: Omit<GetChatDto, "userId">) {
-		const chat = await this.chatService.getChat({
+	async handleGetAnyChat(socket: UserSocket, payload: GetAnyChatDto) {
+		let chat: Chat | null = await this.chatService.getAnyChat({
 			userId: socket.data.user.id,
 			chatId: payload.chatId
 		});
+
+		if (!chat && !payload.userId) return;
+
+		if (payload.userId) {
+			const user = await this.chatService.getUserById(payload.userId);
+			if (!user) return;
+
+			const currentDate = new Date();
+			const timestamp = currentDate.toISOString().slice(0, 23).replace("T", " ");
+
+			// Make temporary chat with mock data
+			chat = {
+				id: TEMPORARY_CHAT_ID,
+				is_group: false,
+				users: [user],
+				messages: [],
+				last_message: null,
+				title: null,
+				updated_at: timestamp
+			} as Chat;
+		}
 
 		socket.emit("chat", chat);
 	}
 
 	@SubscribeMessage("get-chat-history")
-	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
-		const history = await this.chatService.getChatHistory(payload);
+	async handleGetAnyChatHistory(socket: UserSocket, payload: GetAnyChatHistoryDto) {
+		const history = await this.chatService.getAnyChatHistory(payload);
+
 		socket.emit("chat-history", {
 			chat_id: payload.chatId,
 			...history

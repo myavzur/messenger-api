@@ -6,7 +6,7 @@ import { Chat, User } from "@app/shared/entities";
 
 import { ChatService } from "./chat.service";
 import { CreateMessageDto, PaginatedChatsDto } from "./dto";
-import { GetChatDto, GetChatsDto } from "./dto";
+import { GetAnyChatDto, GetAnyChatsDto } from "./dto";
 
 @Controller()
 export class ChatController {
@@ -15,34 +15,34 @@ export class ChatController {
 		private readonly rabbitmqService: RabbitMQService
 	) {}
 
-	@MessagePattern({ cmd: "get-chats" })
-	async getChats(
+	@MessagePattern({ cmd: "get-any-chats" })
+	async getAnyChats(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatsDto
+		@Payload() payload: GetAnyChatsDto
 	): Promise<PaginatedChatsDto> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getChats(payload);
+		return await this.chatService.getAnyChats(payload);
 	}
 
-	@MessagePattern({ cmd: "get-all-conversations" })
-	async getAllConversations(
+	@MessagePattern({ cmd: "get-local-chats" })
+	async getLocalChats(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatsDto
+		@Payload() payload: GetAnyChatsDto
 	): Promise<Chat[]> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.
+		return await this.chatService.getLocalChats(payload.userId);
 	}
 
-	@MessagePattern({ cmd: "get-chat" })
-	async getChat(
+	@MessagePattern({ cmd: "get-any-chat" })
+	async getAnyChat(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatDto
+		@Payload() payload: GetAnyChatDto
 	): Promise<Chat> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getChat(payload);
+		return await this.chatService.getAnyChat(payload);
 	}
 
 	@MessagePattern({ cmd: "create-message" })

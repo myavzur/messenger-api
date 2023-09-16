@@ -1,6 +1,6 @@
 import { Chat, User } from "@app/shared/entities";
 
-export class GetChatDto {
+export class GetAnyChatDto {
 	userId: User["id"];
 	chatId: Chat["id"];
 }

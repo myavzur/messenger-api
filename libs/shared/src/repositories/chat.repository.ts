@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { GetChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
-import { DataSource, FindOptionsRelations, RelationOptions } from "typeorm";
+import { GetAnyChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { DataSource } from "typeorm";
 
 import { Chat, User } from "../entities";
 import { pagination } from "../helpers";
@@ -16,8 +16,7 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		super(Chat, dataSource.createEntityManager());
 	}
 
-	/** Find conversation between two users. */
-	async findConversation(userId: User["id"], withUserId: User["id"]): Promise<Chat> {
+	async findLocalChat(userId, withUserId): Promise<Chat> {
 		return await this.findOne({
 			where: {
 				users: [{ id: userId }, { id: withUserId }],
@@ -30,21 +29,23 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		});
 	}
 
-	async findAllConversations(userId: User["id"], relations?: FindOptionsRelations<Chat>) {
+	async findLocalChats(userId) {
 		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
-				.select("chatsIdsQuery.id")
-				.innerJoin("chatsIdsQuery.users", "user")
-				.where("user.id = :userId AND is_group = false", { userId: userId })
-				.getQuery();
+			.select("chatsIdsQuery.id")
+			.innerJoin("chatsIdsQuery.users", "user")
+			.where("user.id = :userId", { userId: userId })
+			.andWhere("is_group = false")
+			.getQuery();
 
 		return await this.createQueryBuilder("chat")
+			.leftJoinAndSelect("chat.users", "user")
 			.where(`chat.id IN (${chatsIdsQuery})`)
 			.andWhere("user.id != :userId", { userId: userId })
 			.getMany();
 	}
 
-	/** Find chats where user consists of. */
-	async findChats(payload: GetChatsDto): Promise<PaginatedChatsDto> {
+	/** Find any chats where user consists of. */
+	async findAnyChats(payload: GetAnyChatsDto): Promise<PaginatedChatsDto> {
 		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
 		const page = pagination.getPage(payload.page);
 
@@ -57,7 +58,7 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 
 		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false")
+			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false") // Join users if chat is local
 			.leftJoinAndSelect("chat.last_message", "last_message")
 			.where(`chat.id IN (${chatsIdsQuery})`)
 			.andWhere("user.id != :userId", { userId: payload.userId })

@@ -10,8 +10,7 @@ import {
 import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
-import { RedisService } from "@app/redis";
-import { User } from "@app/shared/entities";
+import { Chat, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken, UserSocket } from "@app/shared/interfaces";
 
@@ -23,9 +22,9 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	constructor(
 		@Inject("AUTH_SERVICE")
 		private readonly authService: ClientProxy,
-		@Inject("AUTH_SERVICE")
+		@Inject("CHAT_SERVICE")
 		private readonly chatService: ClientProxy,
-		private readonly presenceService: PresenceService,
+		private readonly presenceService: PresenceService
 	) {}
 
 	@WebSocketServer()
@@ -80,17 +79,34 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	}
 
 	// * Statuses
-	/** Emits `user-changed-status` for all user's conversations. */
-	private async emitStatus(
-		userId: User["id"],
-		status: ConnectedUserStatus
-	) {
+	/** Emits `new-status` for all user's local chats. */
+	private async emitStatus(userId: User["id"], status: ConnectedUserStatus) {
 		this.logger.debug("[emitStatus]: Emitting...");
 
-		const user = await this.presenceService.getConnectedUserById(userId);
-		const conversations = await this.getUserChats(userId);
+		const localChats$ = this.chatService.send<Chat[]>(
+			{ cmd: "get-local-chats" },
+			{ userId }
+		);
+		const localChats = await firstValueFrom(localChats$).catch(e =>
+			this.logger.error(e)
+		);
 
-		this.logger.debug(userChats);
+		if (localChats) {
+			localChats.forEach(async chat => {
+				const connectedUser = await this.presenceService.getConnectedUserById(
+					chat.users[0].id
+				);
+				if (!connectedUser) return;
+
+				console.log(connectedUser);
+
+				this.server.to(connectedUser.socketId).emit("new-status-in-local-chat", {
+					chatId: chat.id,
+					userId,
+					status
+				});
+			});
+		}
 	}
 
 	// * Client events
@@ -99,9 +115,14 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		const user = socket.data?.user;
 
 		if (!user) {
-			this.logger.error('[changeStatus]: Socket has no user data.');
-		};
+			this.logger.error("[changeStatus]: Socket has no user data.");
+		}
 
 		await this.emitStatus(user.id, status);
+	}
+
+	@SubscribeMessage("get-statuses")
+	async getStatuses(socket: UserSocket) {
+		const user = socket.data?.user;
 	}
 }

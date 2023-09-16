@@ -20,7 +20,7 @@ export class Chat {
 	id: number;
 
 	@UpdateDateColumn()
-	updated_at: Date;
+	updated_at: string; // ISO date string
 
 	@Column("varchar", { length: 100, nullable: true })
 	title: string;

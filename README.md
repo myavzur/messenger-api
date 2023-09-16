@@ -27,13 +27,30 @@
 ## Running with Docker 🐋
 
 ```bash
-# build and run
-$ docker-compose up --build
+# Build image for the first time
+$ sudo docker-compose build
+
+# Run existing image for next times
+$ sudo docker-compose up -d
 ```
 
-## Administrating 👨🏻‍💻
+## Developing 👨🏻‍💻
 
 (with default `.env`)
+
+### Instal necessary packages for effective develop 📈
+```bash
+# Use version of node specified in .nvmrc before adding new deps to project
+$ nvm use
+
+# When version of node is correct, use command for clean install with usage of package-lock.json
+$ npm ci
+```
+
+### Terminology 📘
+- **Local Chat** - `Chat` between only 2 users, flag `is_group = true`
+- **Group Chat** - `Chat` between 2+ users, flag `is_group = false`
+- **Any Chat** - **Local Chat** or **Group Chat**
 
 ### Software ⚙️
 
@@ -42,35 +59,19 @@ $ docker-compose up --build
 - _`Redis`_ is running on default `6379` port
 
 
-### GUI 📈
+### GUI 💻
 
 - [HTTP:15672](http://localhost:15672) - _`RabbitMQ - Management`_
 - [HTTP:15432](http://localhost:15432) - _`PostgreSQL Admin`_
+  - [x] Disabled. Uncomment line for `postgres_admin` in `docker-compose.yml` to enable.
+  - [] Enabled
 
-### Microservices 🖥
+### Protocols of Microservices 🖥
 
 - [HTTP:4000](http://localhost:4000) - _`API Gateway`_
-- AMQP - _`Authorization && Authentication Service`_
-- [WS:5000](#) | AMQP - _`Presence Service`_
-- [WS:6000](#) | AMQP - _`Chat && Messages Service`_
-## Installation
-
-```bash
-$ npm install
-```
-
-## Running the app
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
+- [AMQP](#) - _`Authorization`_
+- [WS:5000](#) | [AMQP](#) - _`Presence`_
+- [WS:6000](#) | [AMQP](#) - _`Chat`_
 
 ## Test
 

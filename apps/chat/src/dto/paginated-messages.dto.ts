@@ -1,9 +1,9 @@
 import { Expose } from "class-transformer";
 
-import { PaginatedDto } from "@app/shared/dto";
+import { Paginated } from "@app/shared/dto";
 import { Message } from "@app/shared/entities";
 
-export class PaginatedMessagesDto extends PaginatedDto {
+export class PaginatedMessagesDto extends Paginated {
 	@Expose()
 	messages: Message[];
 }

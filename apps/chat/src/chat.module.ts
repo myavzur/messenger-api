@@ -28,10 +28,6 @@ const CWD = process.cwd();
 		RabbitMQModule.register({
 			service: "AUTH_SERVICE",
 			queue: process.env.RABBITMQ_AUTH_QUEUE
-		}),
-		RabbitMQModule.register({
-			service: "PRESENCE_SERVICE",
-			queue: process.env.RABBITMQ_PRESENCE_QUEUE
 		})
 	],
 	controllers: [ChatController],

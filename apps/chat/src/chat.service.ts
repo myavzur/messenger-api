@@ -24,13 +24,13 @@ const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 @Injectable()
 export class ChatService {
 	constructor(
+		@Inject("AUTH_SERVICE")
+		private readonly authService: ClientProxy,
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
 		@InjectRepository(Message)
 		private readonly messageRepository: Repository<Message>,
 		private readonly cache: RedisService,
-		@Inject("AUTH_SERVICE") private readonly authService: ClientProxy,
-		@Inject("PRESENCE_SERVICE") private readonly presenceService: ClientProxy
 	) {}
 
 	logger: Logger = new Logger(ChatService.name);
@@ -151,6 +151,10 @@ export class ChatService {
 		});
 
 		return { message, chat, isCreated };
+	}
+
+	private async getConversations(userId: User['id']) {
+		return await this.chatRepository.findAllConversations(userId);
 	}
 
 	/** Creates conversation between two users. */

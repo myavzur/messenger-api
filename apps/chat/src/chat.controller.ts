@@ -25,6 +25,16 @@ export class ChatController {
 		return await this.chatService.getChats(payload);
 	}
 
+	@MessagePattern({ cmd: "get-all-conversations" })
+	async getAllConversations(
+		@Ctx() context: RmqContext,
+		@Payload() payload: GetChatsDto
+	): Promise<Chat[]> {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.chatService.
+	}
+
 	@MessagePattern({ cmd: "get-chat" })
 	async getChat(
 		@Ctx() context: RmqContext,

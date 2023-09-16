@@ -21,10 +21,10 @@ import { CreateMessageDto, GetChatDto, GetChatHistoryDto, GetChatsDto } from "./
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	constructor(
+		@Inject("AUTH_SERVICE")
+		private readonly authService: ClientProxy,
 		private readonly chatService: ChatService,
 		private readonly cache: RedisService,
-		@Inject("AUTH_SERVICE") private readonly authService: ClientProxy,
-		@Inject("PRESENCE_SERVICE") private readonly presenceService: ClientProxy
 	) {}
 
 	@WebSocketServer()

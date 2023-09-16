@@ -1,6 +1,6 @@
-import { Paginatable } from "@app/shared/dto";
+import { Pagination } from "@app/shared/dto";
 import { User } from "@app/shared/entities";
 
-export class GetChatsDto extends Paginatable {
+export class GetChatsDto extends Pagination {
 	userId: User["id"];
 }

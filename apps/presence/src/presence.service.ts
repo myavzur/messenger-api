@@ -9,6 +9,10 @@ import { ConnectedUser } from "./interfaces";
 export class PresenceService {
 	constructor(private readonly cache: RedisService) {}
 
+	async clearConnectedUsers() {
+		await this.cache.reset();
+	}
+
 	async setConnectedUser(connectedUser: ConnectedUser) {
 		await this.cache.set(`user:${connectedUser.userId}`, connectedUser, 0);
 	}

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { GetChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
-import { DataSource } from "typeorm";
+import { DataSource, FindOptionsRelations, RelationOptions } from "typeorm";
 
 import { Chat, User } from "../entities";
 import { pagination } from "../helpers";
@@ -17,10 +17,10 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 	}
 
 	/** Find conversation between two users. */
-	async findConversation(userId: User["id"], toUserId: User["id"]): Promise<Chat> {
+	async findConversation(userId: User["id"], withUserId: User["id"]): Promise<Chat> {
 		return await this.findOne({
 			where: {
-				users: [{ id: userId }, { id: toUserId }],
+				users: [{ id: userId }, { id: withUserId }],
 				is_group: false
 			},
 			relations: {
@@ -28,6 +28,19 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 				last_message: true
 			}
 		});
+	}
+
+	async findAllConversations(userId: User["id"], relations?: FindOptionsRelations<Chat>) {
+		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
+				.select("chatsIdsQuery.id")
+				.innerJoin("chatsIdsQuery.users", "user")
+				.where("user.id = :userId AND is_group = false", { userId: userId })
+				.getQuery();
+
+		return await this.createQueryBuilder("chat")
+			.where(`chat.id IN (${chatsIdsQuery})`)
+			.andWhere("user.id != :userId", { userId: userId })
+			.getMany();
 	}
 
 	/** Find chats where user consists of. */

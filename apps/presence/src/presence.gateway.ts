@@ -21,9 +21,11 @@ import { PresenceService } from "./presence.service";
 @WebSocketGateway({ cors: true })
 export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	constructor(
+		@Inject("AUTH_SERVICE")
+		private readonly authService: ClientProxy,
+		@Inject("AUTH_SERVICE")
+		private readonly chatService: ClientProxy,
 		private readonly presenceService: PresenceService,
-		@Inject("AUTH_SERVICE") private readonly authService: ClientProxy,
-		private readonly cache: RedisService
 	) {}
 
 	@WebSocketServer()
@@ -31,8 +33,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	logger: Logger = new Logger(PresenceGateway.name);
 
 	async onModuleInit() {
-		await this.cache.reset();
-		this.logger.debug("Presence cache was reset.");
+		await this.presenceService.clearConnectedUsers();
 	}
 
 	// * Connections
@@ -65,54 +66,42 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 			status: ConnectedUserStatus.ONLINE
 		});
 
-		await this.changeUserStatus(socket, ConnectedUserStatus.ONLINE);
+		await this.emitStatus(decodedToken.user.id, ConnectedUserStatus.ONLINE);
 	}
 
 	async handleDisconnect(socket: UserSocket) {
 		this.logger.debug("[handleDisconnect]: Disconnect handled.");
+		const user = socket.data?.user;
 
-		if (socket.data?.user) {
-			this.logger.debug("[handleDisconnect]: Deleting connection from cache.");
-			await this.presenceService.deleteConnectedUserById(socket.data.user.id);
-			await this.changeUserStatus(socket, ConnectedUserStatus.INVISIBLE);
+		if (user) {
+			await this.presenceService.deleteConnectedUserById(user.id);
+			await this.emitStatus(user.id, ConnectedUserStatus.INVISIBLE);
 		}
 	}
 
 	// * Statuses
-	private async changeUserStatus(socket: UserSocket, status: ConnectedUserStatus) {
-		const user = socket.data?.user;
-
-		if (!user) {
-			this.logger.warn("Something goes wrong.");
-			return null;
-		}
-
-		await this.emitStatusToUserChats(socket.data.user.id, status);
-	}
-
-	/** Emits `user-changed-status` for all chats where userId consists of. */
-	private async emitStatusToUserChats(
+	/** Emits `user-changed-status` for all user's conversations. */
+	private async emitStatus(
 		userId: User["id"],
 		status: ConnectedUserStatus
 	) {
-		this.logger.debug("[emitStatusToUserChats]: Emitting...");
+		this.logger.debug("[emitStatus]: Emitting...");
 
 		const user = await this.presenceService.getConnectedUserById(userId);
-		const userChats = await this.getUserChats(userId);
+		const conversations = await this.getUserChats(userId);
 
 		this.logger.debug(userChats);
-	}
-
-	// * Helpers
-	private async getUserChats(userId: User["id"]) {
-		return 1;
 	}
 
 	// * Client events
 	@SubscribeMessage("change-status")
 	async changeStatus(socket: UserSocket, status: ConnectedUserStatus) {
-		if (!socket.data?.user) return null;
+		const user = socket.data?.user;
 
-		await this.changeUserStatus(socket, status);
+		if (!user) {
+			this.logger.error('[changeStatus]: Socket has no user data.');
+		};
+
+		await this.emitStatus(user.id, status);
 	}
 }

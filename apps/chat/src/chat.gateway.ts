@@ -11,7 +11,7 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { Chat, Message, User } from "@app/shared/entities";
+import { Chat } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
@@ -78,7 +78,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		this.logger.debug("[handleDisconnect]: Disconnect handled.");
 
 		if (socket.data?.user) {
-			this.logger.debug("[handleDisconnect]: Deleting connection from cache.");
 			await this.chatService.deleteConnectedUserById(socket.data.user.id);
 		}
 	}
@@ -105,9 +104,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			chatId: payload.chatId
 		});
 
-		if (!chat && !payload.userId) return;
-
-		if (payload.userId) {
+		if (!chat && payload.userId) {
 			const user = await this.chatService.getUserById(payload.userId);
 			if (!user) return;
 

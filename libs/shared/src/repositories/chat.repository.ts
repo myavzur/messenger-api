@@ -16,10 +16,10 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		super(Chat, dataSource.createEntityManager());
 	}
 
-	async findLocalChat(userId, withUserId): Promise<Chat> {
+	async findLocalChat(userIds: User["id"][]): Promise<Chat> {
 		return await this.findOne({
 			where: {
-				users: [{ id: userId }, { id: withUserId }],
+				users: [{ id: userIds[0] }, { id: userIds[1] }],
 				is_group: false
 			},
 			relations: {
@@ -29,7 +29,7 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		});
 	}
 
-	async findLocalChats(userId) {
+	async findLocalChats(userId: User["id"]): Promise<Chat[]> {
 		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
 			.select("chatsIdsQuery.id")
 			.innerJoin("chatsIdsQuery.users", "user")

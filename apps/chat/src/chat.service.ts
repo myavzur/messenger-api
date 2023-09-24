@@ -75,6 +75,8 @@ export class ChatService {
 		// If user isn't a member of requested chat - don't return this chat.
 		if (!isParticipant) return null;
 
+		chat.users = chat.users.filter(user => user.id !== payload.userId);
+
 		return chat;
 	}
 
@@ -117,13 +119,17 @@ export class ChatService {
 		let chat: Chat | null = null;
 		let isCreated = false;
 
-		if (payload.chatId) {
+		if (payload.chatId && payload.chatId !== -1) {
 			chat = await this.chatRepository.findOneById(payload.chatId);
-		} else if (payload.userId) {
-			chat = await this.createLocalChat(userId, payload.userId);
+		}
+
+		if (!chat && payload.userId) {
+			chat = await this.createLocalChat([userId, payload.userId]);
 			isCreated = true;
-		} else {
-			this.logger.log("No chat created");
+		}
+
+		if (!chat) {
+			this.logger.debug("No chat created");
 		}
 
 		// * Message
@@ -162,26 +168,22 @@ export class ChatService {
 	}
 
 	/** Creates localChat between two users. */
-	private async createLocalChat(userId: User["id"], withUserId: User["id"]) {
-		this.logger.log(
-			`Creating localChat between two users user:${userId} and user:${withUserId}`
-		);
-		const user = await this.getUserById(userId);
-		const withUser = await this.getUserById(withUserId);
+	private async createLocalChat(userIds: User["id"][]) {
+		const users = (await Promise.all(
+			userIds.map(userId => this.getUserById(userId))
+		)) as User[];
 
-		if (!user || !withUser) return null;
-
-		const localChat = await this.chatRepository.findLocalChat(userId, withUserId);
-
-		if (!localChat) {
-			return await this.chatRepository.save({
-				users: [user, withUser]
-			});
+		if (users.length !== 2) {
+			this.logger.debug("Users not found.");
+			return;
 		}
 
-		this.logger.log(
-			`LocalChat between user:${user.account_name} and friend:${withUser.account_name} already exists.`
-		);
+		const localChat = await this.chatRepository.findLocalChat(userIds);
+		if (localChat) {
+			this.logger.debug("LocalChat already exists.");
+			return;
+		}
+		return await this.chatRepository.save({ users: users });
 	}
 
 	// * Microservices

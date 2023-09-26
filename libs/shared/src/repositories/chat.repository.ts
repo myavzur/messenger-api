@@ -17,16 +17,13 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 	}
 
 	async findLocalChat(userIds: User["id"][]): Promise<Chat> {
-		return await this.findOne({
-			where: {
-				users: [{ id: userIds[0] }, { id: userIds[1] }],
-				is_group: false
-			},
-			relations: {
-				users: true,
-				last_message: true
-			}
-		});
+		return await this.createQueryBuilder("chat")
+			.leftJoinAndSelect("chat.last_message", "last_message")
+			.leftJoinAndSelect("chat.users", "user")
+			.where("chat.is_group = true")
+			.andWhere("user.id = :firstUserId", { firstUserId: userIds[0] })
+			.andWhere("user.id = :secondUserId", { secondUserId: userIds[1] })
+			.getOne();
 	}
 
 	async findLocalChats(userId: User["id"]): Promise<Chat[]> {
@@ -50,18 +47,10 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		const page = pagination.getPage(payload.page);
 
 		// Get chats where {userId} is a member.
-		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
-			.select("chatsIdsQuery.id")
-			.innerJoin("chatsIdsQuery.users", "user")
-			.where("user.id = :userId", { userId: payload.userId })
-			.getQuery();
-
-		// Get chats with filtered chat.users (without {userId}).
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false") // Join users if chat is local
 			.leftJoinAndSelect("chat.last_message", "last_message")
-			.where(`chat.id IN (${chatsIdsQuery})`)
-			.andWhere("user.id != :userId", { userId: payload.userId })
+			.where("user.id = :userId", { userId: payload.userId })
 			.orderBy("chat.updated_at", "DESC")
 			.skip((page - 1) * limit)
 			.take(limit)

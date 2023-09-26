@@ -1,11 +1,8 @@
 import {
 	Body,
 	Controller,
-	DefaultValuePipe,
 	Get,
 	Inject,
-	Param,
-	ParseIntPipe,
 	Post,
 	Query,
 	Req,
@@ -16,21 +13,15 @@ import {
 import { ClientProxy } from "@nestjs/microservices";
 import { LoginDto } from "apps/auth/src/dto";
 import { RegisterDto } from "apps/auth/src/dto/register.dto";
-import { CreateMessageDto, PaginatedChatsDto } from "apps/chat/src/dto";
-import { GetAnyChatDto, GetAnyChatsDto } from "apps/chat/src/dto";
 
-import { Chat, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";
 
 @Controller()
 export class AppController {
-	constructor(
-		@Inject("AUTH_SERVICE") private authService: ClientProxy,
-		@Inject("CHAT_SERVICE") private chatService: ClientProxy,
-		@Inject("PRESENCE_SERVICE") private presenceService: ClientProxy
-	) {}
+	constructor(@Inject("AUTH_SERVICE") private authService: ClientProxy) {}
 
 	// * Users
 	@Get("users")
@@ -64,50 +55,5 @@ export class AppController {
 	@Post("auth/login")
 	async login(@Body(new ValidationPipe()) dto: LoginDto) {
 		return this.authService.send({ cmd: "login" }, dto);
-	}
-
-	// * Chats
-	@Get("chats")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async getAnyChats(
-		@Req() request: UserRequest,
-		@Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-		@Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number
-	) {
-		return this.chatService.send<PaginatedChatsDto, GetAnyChatsDto>(
-			{ cmd: "get-any-chats" },
-			{
-				userId: request.user.id,
-				page,
-				limit
-			}
-		);
-	}
-
-	@Get("chats/id/:id")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async getAnyChat(@Req() request: UserRequest, @Param("id") id: Chat["id"]) {
-		return this.chatService.send<Chat, GetAnyChatDto>(
-			{ cmd: "get-any-chat" },
-			{
-				userId: request.user.id,
-				chatId: id
-			}
-		);
-	}
-
-	@Post("chats/messages")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async createMessage(@Req() request: UserRequest, @Body() dto: CreateMessageDto) {
-		return this.chatService.send(
-			{ cmd: "create-message" },
-			{
-				userId: request.user.id,
-				message: dto
-			}
-		);
 	}
 }

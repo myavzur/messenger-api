@@ -66,6 +66,7 @@ export class ChatService {
 			relations: { users: true }
 		});
 
+		// TODO: Сделать доп. параметр currentUserId (userId) и также добавить его в условие выборки чата
 		if (!chat) return null;
 
 		const isParticipant = Boolean(
@@ -74,9 +75,6 @@ export class ChatService {
 
 		// If user isn't a member of requested chat - don't return this chat.
 		if (!isParticipant) return null;
-
-		chat.users = chat.users.filter(user => user.id !== payload.userId);
-
 		return chat;
 	}
 

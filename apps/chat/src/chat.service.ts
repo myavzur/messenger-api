@@ -66,7 +66,6 @@ export class ChatService {
 			relations: { users: true }
 		});
 
-		// TODO: Сделать доп. параметр currentUserId (userId) и также добавить его в условие выборки чата
 		if (!chat) return null;
 
 		const isParticipant = Boolean(
@@ -159,10 +158,6 @@ export class ChatService {
 		});
 
 		return { message, chat, isCreated };
-	}
-
-	async getLocalChats(userId: User["id"]) {
-		return await this.chatRepository.findLocalChats(userId);
 	}
 
 	/** Creates localChat between two users. */

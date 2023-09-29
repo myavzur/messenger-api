@@ -16,6 +16,18 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		super(Chat, dataSource.createEntityManager());
 	}
 
+	async findUsersBasedOnLocalChats(userId: User["id"]): Promise<User[]> {
+		return await this.dataSource.query(
+			`
+			SELECT * FROM users
+			JOIN chats_has_users chatUsersA ON chatUsersA.user_id = users.id
+			JOIN chats_has_users chatUsersB ON chatUsersA.chat_id = chatUsersB.chat_id
+			WHERE chatUsersA.user_id != $1 AND chatUsersB.user_id = $1
+		`,
+			[userId]
+		);
+	}
+
 	async findLocalChat(userIds: User["id"][]): Promise<Chat> {
 		return await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.last_message", "last_message")
@@ -26,31 +38,24 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 			.getOne();
 	}
 
-	async findLocalChats(userId: User["id"]): Promise<Chat[]> {
-		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
-			.select("chatsIdsQuery.id")
-			.innerJoin("chatsIdsQuery.users", "user")
-			.where("user.id = :userId", { userId: userId })
-			.andWhere("is_group = false")
-			.getQuery();
-
-		return await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
-			.where(`chat.id IN (${chatsIdsQuery})`)
-			.andWhere("user.id != :userId", { userId: userId })
-			.getMany();
-	}
-
 	/** Find any chats where user consists of. */
 	async findAnyChats(payload: GetAnyChatsDto): Promise<PaginatedChatsDto> {
 		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
 		const page = pagination.getPage(payload.page);
 
-		// Get chats where {userId} is a member.
+		// Get chat IDs where {userId} is a member.
+		const chatIdsQb = await this.createQueryBuilder("chat")
+			.select("chat.id")
+			.innerJoin("chat.users", "user")
+			.where("user.id = :userId", { userId: payload.userId })
+			.andWhere("is_group = false")
+			.getQuery();
+
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false") // Join users if chat is local
 			.leftJoinAndSelect("chat.last_message", "last_message")
-			.where("user.id = :userId", { userId: payload.userId })
+			.where(`chat.id IN (${chatIdsQb})`)
+			.andWhere(`user.id != :userId`, { userId: payload.userId }) // Костыль
 			.orderBy("chat.updated_at", "DESC")
 			.skip((page - 1) * limit)
 			.take(limit)

@@ -5,7 +5,7 @@ import { RabbitMQService } from "@app/rabbitmq";
 import { User } from "@app/shared/entities";
 
 import { AuthService } from "./auth.service";
-import { LoginDto, RegisterDto } from "./dto";
+import { GetUsersBasedOnLocalChatsDto, LoginDto, RegisterDto } from "./dto";
 
 @Controller()
 export class AuthController {
@@ -20,6 +20,16 @@ export class AuthController {
 		this.rabbitmqService.acknowledgeMessage(context);
 
 		return await this.authService.getUsers();
+	}
+
+	@MessagePattern({ cmd: "get-users-based-on-chats" })
+	async getUsersBasedOnLocalChats(
+		@Ctx() context: RmqContext,
+		@Payload() payload: GetUsersBasedOnLocalChatsDto
+	) {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.authService.getUsersBasedOnLocalChats(payload);
 	}
 
 	@MessagePattern({ cmd: "get-users-like-account-name" })

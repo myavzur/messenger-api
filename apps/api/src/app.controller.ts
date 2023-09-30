@@ -39,6 +39,16 @@ export class AppController {
 		);
 	}
 
+	@Get("users/local-chats")
+	@UseGuards(AuthGuard)
+	@UseInterceptors(UserInterceptor)
+	async getUsersBasedOnLocalChats(@Req() request: UserRequest) {
+		return this.authService.send(
+			{ cmd: "get-users-based-on-chats" },
+			{ userId: request.user.id }
+		);
+	}
+
 	// * Auth
 	@Get("auth/me")
 	@UseGuards(AuthGuard)

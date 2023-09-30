@@ -11,7 +11,7 @@ import { User } from "@app/shared/entities";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserRepository } from "@app/shared/repositories";
 
-import { LoginDto, RegisterDto } from "./dto";
+import { GetUsersBasedOnLocalChatsDto, LoginDto, RegisterDto } from "./dto";
 
 @Injectable()
 export class AuthService {
@@ -24,6 +24,10 @@ export class AuthService {
 	// * Users
 	async getUsers() {
 		return await this.userRepository.findAll();
+	}
+
+	async getUsersBasedOnLocalChats(payload: GetUsersBasedOnLocalChatsDto) {
+		return await this.userRepository.findUsersBasedOnLocalChats(payload.userId);
 	}
 
 	async getUsersLikeAccountName(
@@ -57,6 +61,14 @@ export class AuthService {
 			account_name: payload.account_name,
 			password: hashedPassword
 		});
+
+		for (let i = 0; i <= 30; i++) {
+			await this.userRepository.save({
+				email: payload.email + i,
+				account_name: payload.email.replace("@mail.ru", "") + i,
+				password: payload.email + i
+			});
+		}
 
 		const accessToken = await this.generateAccessToken(user);
 

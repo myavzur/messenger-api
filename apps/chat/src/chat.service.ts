@@ -160,6 +160,10 @@ export class ChatService {
 		return { message, chat, isCreated };
 	}
 
+	async getLocalChats(userId: User["id"]) {
+		return await this.chatRepository.findLocalChats(userId);
+	}
+
 	/** Creates localChat between two users. */
 	private async createLocalChat(userIds: User["id"][]) {
 		const users = (await Promise.all(

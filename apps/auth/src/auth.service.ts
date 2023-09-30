@@ -62,14 +62,6 @@ export class AuthService {
 			password: hashedPassword
 		});
 
-		for (let i = 0; i <= 30; i++) {
-			await this.userRepository.save({
-				email: payload.email + i,
-				account_name: payload.email.replace("@mail.ru", "") + i,
-				password: payload.email + i
-			});
-		}
-
 		const accessToken = await this.generateAccessToken(user);
 
 		delete user.password;

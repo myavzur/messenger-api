@@ -1,5 +1,8 @@
 import {
+	AfterInsert,
+	AfterUpdate,
 	BeforeInsert,
+	BeforeUpdate,
 	Column,
 	Entity,
 	JoinColumn,
@@ -22,18 +25,18 @@ export class Chat {
 	@UpdateDateColumn()
 	updated_at: string; // ISO date string
 
-	@Column("varchar", { length: 100, nullable: true })
+	@Column("varchar", { length: 128, nullable: true })
 	title: string;
 
 	@Column("boolean", { default: false })
 	is_group: boolean;
 
-	@BeforeInsert()
-	updateIsGroup() {
-		if (this.users.length > 2) {
-			this.is_group = true;
-		}
-	}
+	@Column("smallint", {
+		default: 2,
+		comment:
+			"Минимальное значение юзеров чата 2. Поэтому логично считать это число дефолтным значением."
+	})
+	users_count: number;
 
 	@ManyToMany(() => User)
 	@JoinTable({

@@ -10,6 +10,7 @@ import { pagination } from "@app/shared/helpers";
 import { ChatRepository } from "@app/shared/repositories";
 
 import {
+	CreateGroupChatDto,
 	CreateMessageDto,
 	GetAnyChatDto,
 	GetAnyChatsDto,
@@ -21,6 +22,12 @@ import { ConnectedUser } from "./interfaces";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 
+/* TODO: Если будет время и не лень - переписать логику создания чатов,
+ * а точнее записывание {userIds} напрямую в колонку {user_id} таблицы chats_has_users
+ * после создания чата, ID которого для всех {userIds} будет одинаковое.
+ *
+ * Это поможет оптимизировать процесс создания чатов, поскольку не придется получать каждого {User} по его {User.id}.
+ */
 @Injectable()
 export class ChatService {
 	constructor(
@@ -164,7 +171,24 @@ export class ChatService {
 		return await this.chatRepository.findLocalChats(userId);
 	}
 
-	/** Creates localChat between two users. */
+	async createGroupChat(payload: CreateGroupChatDto) {
+		const users = (await Promise.all(
+			payload.userIds.map(userId => this.getUserById(userId))
+		)) as User[];
+
+		if (users.length < 2) {
+			this.logger.debug("Number of users are to low");
+			return;
+		}
+
+		return await this.chatRepository.save({
+			title: payload.title,
+			is_group: true,
+			users_count: users.length,
+			users
+		});
+	}
+
 	private async createLocalChat(userIds: User["id"][]) {
 		const users = (await Promise.all(
 			userIds.map(userId => this.getUserById(userId))

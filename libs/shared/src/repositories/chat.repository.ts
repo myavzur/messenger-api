@@ -51,11 +51,11 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 			.select("chat.id")
 			.innerJoin("chat.users", "user")
 			.where("user.id = :userId", { userId: payload.userId })
-			.andWhere("is_group = false")
 			.getQuery();
 
+		// TODO: Можно подумать как делать JOIN юзеров только в том случае если чат !is_group.
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user", "chat.is_group = false") // Join users if chat is local
+			.leftJoinAndSelect("chat.users", "user")
 			.leftJoinAndSelect("chat.last_message", "last_message")
 			.where(`chat.id IN (${chatIdsQb})`)
 			.andWhere(`user.id != :userId`, { userId: payload.userId }) // Костыль
@@ -63,6 +63,8 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 			.skip((page - 1) * limit)
 			.take(limit)
 			.getManyAndCount();
+
+		console.log(chats);
 
 		const totalPages = Math.ceil(totalChats / limit);
 

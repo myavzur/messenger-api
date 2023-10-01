@@ -5,7 +5,7 @@ import { RabbitMQService } from "@app/rabbitmq";
 import { Chat, User } from "@app/shared/entities";
 
 import { ChatService } from "./chat.service";
-import { CreateMessageDto, PaginatedChatsDto } from "./dto";
+import { CreateGroupChatDto, CreateMessageDto, PaginatedChatsDto } from "./dto";
 import { GetAnyChatDto, GetAnyChatsDto } from "./dto";
 
 @Controller()
@@ -43,6 +43,16 @@ export class ChatController {
 		this.rabbitmqService.acknowledgeMessage(context);
 
 		return await this.chatService.getAnyChat(payload);
+	}
+
+	@MessagePattern({ cmd: "create-group-chat" })
+	async createGroupChat(
+		@Ctx() context: RmqContext,
+		@Payload() payload: CreateGroupChatDto
+	) {
+		this.rabbitmqService.acknowledgeMessage(context);
+
+		return await this.chatService.createGroupChat(payload);
 	}
 
 	@MessagePattern({ cmd: "create-message" })

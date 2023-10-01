@@ -32,6 +32,9 @@ $ sudo docker-compose build
 
 # Run existing image for next times
 $ sudo docker-compose up -d
+
+# Reboot container
+$ docker-compose down && docker-compose up -d
 ```
 
 ## Developing 👨🏻‍💻

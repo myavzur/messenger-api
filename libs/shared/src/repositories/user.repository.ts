@@ -4,7 +4,10 @@ import { DataSource, ILike } from "typeorm";
 import { User } from "../entities";
 
 import { BaseRepository } from "./base.repository.abstract";
-import { IUserRepository } from "./user.repository.interface";
+import {
+	IFindUsersBasedOnLocalChats,
+	IUserRepository
+} from "./user.repository.interface";
 
 @Injectable()
 export class UserRepository extends BaseRepository<User> implements IUserRepository {
@@ -24,14 +27,23 @@ export class UserRepository extends BaseRepository<User> implements IUserReposit
 	 * 	<button>"Add {user.id} to Group Chat"</button>
 	 * )
 	 */
-	async findUsersBasedOnLocalChats(userId: User["id"]): Promise<User[]> {
+	async findUsersBasedOnLocalChats(userId: User["id"]): IFindUsersBasedOnLocalChats {
 		return await this.dataSource.query(
 			`
-			SELECT id, account_name, avatar_url FROM users
-			JOIN chats_has_users chatUsersA ON chatUsersA.user_id = users.id
-			JOIN chats_has_users chatUsersB ON chatUsersA.chat_id = chatUsersB.chat_id
-			WHERE chatUsersA.user_id != $1 AND chatUsersB.user_id = $1
-		`,
+				SELECT
+					users.id,
+					users.account_name,
+					users.avatar_url,
+					chats.id as chat_id
+				FROM users
+				INNER JOIN chats_has_users cu ON cu.user_id = users.id
+				INNER JOIN chats_has_users cuA ON cu.chat_id = cuA.chat_id
+				INNER JOIN chats ON chats.id = cuA.chat_id
+				WHERE
+					cu.user_id != $1 AND
+					cuA.user_id = $1 AND
+					chats.is_group = false
+			`,
 			[userId]
 		);
 	}

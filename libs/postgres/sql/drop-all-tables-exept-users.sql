@@ -1,0 +1,3 @@
+DROP TABLE chats CASCADE;
+DROP TABLE chats_has_users CASCADE;
+DROP TABLE messages CASCADE;

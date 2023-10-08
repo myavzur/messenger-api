@@ -76,7 +76,15 @@ export class AppController {
 
 	// Chats
 	@Post("chats/group")
-	async createGroupChat(@Body(new ValidationPipe()) dto: CreateGroupChatDto) {
+	@UseGuards(AuthGuard)
+	@UseInterceptors(UserInterceptor)
+	async createGroupChat(
+		@Req() request: UserRequest,
+		@Body(new ValidationPipe()) dto: CreateGroupChatDto
+	) {
+		// Add current user id to chat members.
+		dto.userIds.push(request.user.id);
+
 		return await this.chatService.send<Chat, CreateGroupChatDto>(
 			{ cmd: "create-group-chat" },
 			dto

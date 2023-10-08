@@ -25,7 +25,7 @@ const CWD = process.cwd();
 			imports: [ConfigModule],
 			inject: [ConfigService],
 			useFactory: (configService: ConfigService) => ({
-				secret: configService.get("JWT_SECRET"),
+				secret: configService.get("APP_SECRET_KEY"),
 				signOptions: {
 					expiresIn: "3h"
 				}

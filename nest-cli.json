@@ -81,15 +81,6 @@
       "compilerOptions": {
         "tsConfigPath": "apps/chat/tsconfig.app.json"
       }
-    },
-    "meet": {
-      "type": "application",
-      "root": "apps/meet",
-      "entryFile": "main",
-      "sourceRoot": "apps/meet/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/meet/tsconfig.app.json"
-      }
     }
   }
 }

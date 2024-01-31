@@ -2,6 +2,7 @@ import {
 	Column,
 	CreateDateColumn,
 	Entity,
+	JoinColumn,
 	ManyToOne,
 	PrimaryGeneratedColumn
 } from "typeorm";
@@ -20,9 +21,20 @@ export class Message {
 	@Column("text", { nullable: true })
 	text: string;
 
+	// Relations
 	@ManyToOne(() => User, user => user.messages)
+	@JoinColumn({
+		name: "user_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_message_user"
+	})
 	user: User;
 
 	@ManyToOne(() => Chat, chat => chat.messages)
+	@JoinColumn({
+		name: "chat_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_message_chat"
+	})
 	chat: Chat;
 }

@@ -33,6 +33,7 @@ export class User {
 	@Column("timestamp", { default: () => "CURRENT_TIMESTAMP(6)", nullable: false })
 	last_seen_at: Date;
 
+	// Relations
 	@ManyToMany(() => Chat, chat => chat.users)
 	chats: Chat[];
 

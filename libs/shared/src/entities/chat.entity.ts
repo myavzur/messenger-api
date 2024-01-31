@@ -38,20 +38,26 @@ export class Chat {
 	@JoinTable({
 		name: "chats_has_users",
 		joinColumn: {
+			foreignKeyConstraintName: "FK_chat",
 			name: "chat_id",
 			referencedColumnName: "id"
 		},
 		inverseJoinColumn: {
+			foreignKeyConstraintName: "FK_chat_user",
 			name: "user_id",
 			referencedColumnName: "id"
 		}
 	})
 	users: User[];
 
-	@OneToMany(() => Message, message => message.chat)
+	@OneToMany(() => Message, message => message.chat, {})
 	messages: Message[];
 
 	@OneToOne(() => Message)
-	@JoinColumn({ name: "last_message_id", referencedColumnName: "id" })
+	@JoinColumn({
+		name: "last_message_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_chat_last_message"
+	})
 	last_message: Message;
 }

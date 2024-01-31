@@ -65,7 +65,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 			status: ConnectedUserStatus.ONLINE
 		});
 
-		await this.emitStatus(decodedToken.user.id, ConnectedUserStatus.ONLINE);
+		// await this.emitStatus(decodedToken.user.id, ConnectedUserStatus.ONLINE);
 	}
 
 	async handleDisconnect(socket: UserSocket) {
@@ -74,7 +74,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 		if (user) {
 			await this.presenceService.deleteConnectedUserById(user.id);
-			await this.emitStatus(user.id, ConnectedUserStatus.INVISIBLE);
+			// await this.emitStatus(user.id, ConnectedUserStatus.INVISIBLE);
 		}
 	}
 
@@ -82,6 +82,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 	/** Emits `new-status` for all user's local chats. */
 	private async emitStatus(userId: User["id"], status: ConnectedUserStatus) {
 		this.logger.debug("[emitStatus]: Emitting...");
+		this.logger.log(userId);
 
 		const localChats$ = this.chatService.send<Chat[]>(
 			{ cmd: "get-local-chats" },

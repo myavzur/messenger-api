@@ -1,22 +1,25 @@
 import { Injectable } from "@nestjs/common";
-import { GetAnyChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 import { DataSource } from "typeorm";
 
 import { Chat, User } from "../entities";
 import { pagination } from "../helpers";
 
-import { BaseRepository } from "./base.repository.abstract";
-import { IChatRepository } from "./chat.repository.interface";
+import { BaseRepositoryAbstract } from "./base.repository.abstract";
+import { IChatRepository, IUpdateUsersParams } from "./chat.repository.interface";
 
 const MAX_CHATS_LIMIT_PER_PAGE = 20;
 
 @Injectable()
-export class ChatRepository extends BaseRepository<Chat> implements IChatRepository {
+export class ChatRepository
+	extends BaseRepositoryAbstract<Chat>
+	implements IChatRepository
+{
 	constructor(private dataSource: DataSource) {
 		super(Chat, dataSource.createEntityManager());
 	}
 
-	async findLocalChats(userId: User["id"]): Promise<Chat[]> {
+	async getLocalChats(userId: User["id"]): Promise<Chat[]> {
 		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
 			.select("chatsIdsQuery.id")
 			.innerJoin("chatsIdsQuery.users", "user")
@@ -31,18 +34,18 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 			.getMany();
 	}
 
-	async findLocalChat(userIds: User["id"][]): Promise<Chat> {
+	async getLocalChat(userIds: User["id"][]): Promise<Chat> {
 		return await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.last_message", "last_message")
 			.leftJoinAndSelect("chat.users", "user")
-			.where("chat.is_group = true")
+			.where("chat.is_group = false")
 			.andWhere("user.id = :firstUserId", { firstUserId: userIds[0] })
 			.andWhere("user.id = :secondUserId", { secondUserId: userIds[1] })
 			.getOne();
 	}
 
 	/** Find any chats where user consists of. */
-	async findAnyChats(payload: GetAnyChatsDto): Promise<PaginatedChatsDto> {
+	async getAllChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
 		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
 		const page = pagination.getPage(payload.page);
 

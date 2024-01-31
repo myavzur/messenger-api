@@ -6,7 +6,7 @@ interface TypeWithId {
 	id: number | string;
 }
 
-export abstract class BaseRepository<T extends TypeWithId>
+export abstract class BaseRepositoryAbstract<T extends TypeWithId>
 	extends Repository<T>
 	implements IBaseRepository<T>
 {

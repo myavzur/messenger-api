@@ -22,9 +22,9 @@ export interface ServerToClientEvents {
 
 // * Client
 export interface ClientToServerEvents {
-	"get-any-chats": (params: { page: number; limit: number }) => void;
-	"get-any-chat": (params: { chatId: Chat["id"] }) => void;
-	"get-any-chat-history": (params: {
+	"get-chats": (params: { page: number; limit: number }) => void;
+	"get-chat": (params: { chatId: Chat["id"] }) => void;
+	"get-chat-history": (params: {
 		chatId: Chat["id"];
 		page: number;
 		limit: number;

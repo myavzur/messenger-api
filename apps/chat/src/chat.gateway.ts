@@ -21,10 +21,10 @@ import {
 	CreateMessageDto,
 	GetAnyChatDto,
 	GetAnyChatHistoryDto,
-	GetAnyChatsDto
+	GetUserChatsDto
 } from "./dto";
 
-const TEMPORARY_CHAT_ID = -1;
+const TEMPORARY_CHAT_ID = "TMP";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -84,11 +84,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	// * Client events
 	@SubscribeMessage("get-chats")
-	async handleGetAnyChats(
+	async handleGetUserChats(
 		socket: UserSocket,
-		payload: Omit<GetAnyChatsDto, "userId">
+		payload: Omit<GetUserChatsDto, "userId">
 	) {
-		const chats = await this.chatService.getAnyChats({
+		this.logger.error("get-chats!");
+		const chats = await this.chatService.getUserChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
@@ -99,7 +100,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("get-chat")
 	async handleGetAnyChat(socket: UserSocket, payload: GetAnyChatDto) {
-		let chat: Chat | null = await this.chatService.getAnyChat({
+		let chat: Chat | null = await this.chatService.getChat({
 			userId: socket.data.user.id,
 			chatId: payload.chatId
 		});

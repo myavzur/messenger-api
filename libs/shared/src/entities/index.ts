@@ -1,3 +1,4 @@
-export { Chat } from "./chat.entity";
-export { Message } from "./message.entity";
-export { User } from "./user.entity";
+export * from "./chat.entity";
+export * from "./chat.entity";
+export * from "./message.entity";
+export * from "./user.entity";

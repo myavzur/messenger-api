@@ -6,14 +6,15 @@ import { Repository } from "typeorm";
 
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
+import { ChatUser } from "@app/shared/entities/chat-user.entity";
 import { pagination } from "@app/shared/helpers";
-import { ChatRepository } from "@app/shared/repositories";
+import { ChatRepository, ChatUserRepository } from "@app/shared/repositories";
 
 import {
 	CreateGroupChatDto,
 	CreateMessageDto,
 	GetAnyChatDto,
-	GetAnyChatsDto,
+	GetUserChatsDto,
 	PaginatedChatsDto,
 	PaginatedMessagesDto
 } from "./dto";
@@ -29,6 +30,8 @@ export class ChatService {
 		private readonly authService: ClientProxy,
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
+		@InjectRepository(ChatUserRepository)
+		private readonly chatUserRepository: ChatUserRepository,
 		@InjectRepository(Message)
 		private readonly messageRepository: Repository<Message>,
 		private readonly cache: RedisService
@@ -54,12 +57,12 @@ export class ChatService {
 	}
 
 	// * Chats
-	async getAnyChats(payload: GetAnyChatsDto): Promise<PaginatedChatsDto> {
-		return await this.chatRepository.findAnyChats(payload);
+	async getUserChats(payload: GetUserChatsDto): Promise<ChatUser[]> {
+		return await this.chatRepository.getAllChats(payload);
 	}
 
 	/** Get base information about chat: id, updated_at, title, users */
-	async getAnyChat(payload: GetAnyChatDto): Promise<Chat | null> {
+	async getChat(payload: GetAnyChatDto): Promise<Chat | null> {
 		const chat = await this.chatRepository.findOne({
 			where: {
 				id: payload.chatId
@@ -125,7 +128,7 @@ export class ChatService {
 		let chat: Chat | null = null;
 		let isCreated = false;
 
-		if (payload.chatId && payload.chatId !== -1) {
+		if (payload.chatId && payload.chatId !== "TMP") {
 			chat = await this.chatRepository.findOneById(payload.chatId);
 		}
 
@@ -170,7 +173,7 @@ export class ChatService {
 	}
 
 	async getLocalChats(userId: User["id"]) {
-		return await this.chatRepository.findLocalChats(userId);
+		return await this.chatRepository.getLocalChats(userId);
 	}
 
 	async createGroupChat(payload: CreateGroupChatDto) {
@@ -211,7 +214,7 @@ export class ChatService {
 			return;
 		}
 
-		const localChat = await this.chatRepository.findLocalChat(userIds);
+		const localChat = await this.chatRepository.getLocalChat(userIds);
 		if (localChat) {
 			this.logger.debug("Chat already exists.");
 			return;

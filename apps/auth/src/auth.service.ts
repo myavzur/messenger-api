@@ -27,13 +27,13 @@ export class AuthService {
 	}
 
 	async getUsersBasedOnLocalChats(payload: GetUsersBasedOnLocalChatsDto) {
-		return await this.userRepository.findUsersBasedOnLocalChats(payload.userId);
+		return await this.userRepository.getUsersBasedOnLocalChats(payload.userId);
 	}
 
 	async getUsersLikeAccountName(
 		account_name: User["account_name"]
 	): Promise<User[]> {
-		return this.userRepository.findManyLikeAccountName(account_name);
+		return this.userRepository.getUsersLikeAccountName(account_name);
 	}
 
 	async getUserById(id: User["id"]) {
@@ -48,7 +48,7 @@ export class AuthService {
 			throw new BadRequestException("Passwords didn't match.");
 		}
 
-		const oldUser = await this.userRepository.findOneByEmail(payload.email);
+		const oldUser = await this.userRepository.getUserByEmail(payload.email);
 
 		if (oldUser) {
 			throw new BadRequestException("An account with that email already exists.");
@@ -70,7 +70,7 @@ export class AuthService {
 	}
 
 	async login(payload: LoginDto): Promise<{ user: User; access_token: string }> {
-		const user = await this.userRepository.findOneByEmail(payload.email);
+		const user = await this.userRepository.getUserByEmail(payload.email);
 
 		if (!user) {
 			throw new BadRequestException();

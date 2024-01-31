@@ -3,10 +3,11 @@ import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 
 import { RabbitMQService } from "@app/rabbitmq";
 import { Chat, User } from "@app/shared/entities";
+import { ChatUser } from "@app/shared/entities/chat-user.entity";
 
 import { ChatService } from "./chat.service";
 import { CreateGroupChatDto, CreateMessageDto, PaginatedChatsDto } from "./dto";
-import { GetAnyChatDto, GetAnyChatsDto } from "./dto";
+import { GetAnyChatDto, GetUserChatsDto } from "./dto";
 
 @Controller()
 export class ChatController {
@@ -18,31 +19,31 @@ export class ChatController {
 	@MessagePattern({ cmd: "get-local-chats" })
 	async getLocalChats(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetAnyChatsDto
+		@Payload() payload: GetUserChatsDto
 	): Promise<Chat[]> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
 		return await this.chatService.getLocalChats(payload.userId);
 	}
 
-	@MessagePattern({ cmd: "get-any-chats" })
-	async getAnyChats(
+	@MessagePattern({ cmd: "get-chats" })
+	async getAllChat(
 		@Ctx() context: RmqContext,
-		@Payload() payload: GetAnyChatsDto
-	): Promise<PaginatedChatsDto> {
+		@Payload() payload: GetUserChatsDto
+	): Promise<ChatUser[]> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getAnyChats(payload);
+		return await this.chatService.getUserChats(payload);
 	}
 
-	@MessagePattern({ cmd: "get-any-chat" })
-	async getAnyChat(
+	@MessagePattern({ cmd: "get-chat" })
+	async getChat(
 		@Ctx() context: RmqContext,
 		@Payload() payload: GetAnyChatDto
 	): Promise<Chat> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getAnyChat(payload);
+		return await this.chatService.getChat(payload);
 	}
 
 	@MessagePattern({ cmd: "create-group-chat" })

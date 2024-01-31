@@ -9,11 +9,12 @@ import {
 
 import { Chat } from "./chat.entity";
 import { Message } from "./message.entity";
+import { ChatUser } from "./chat-user.entity";
 
 @Entity({ name: "users" })
 export class User {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryGeneratedColumn("uuid")
+	id: string;
 
 	@CreateDateColumn()
 	created_at: Date;
@@ -33,7 +34,8 @@ export class User {
 	@Column("timestamp", { default: () => "CURRENT_TIMESTAMP(6)", nullable: false })
 	last_seen_at: Date;
 
-	@ManyToMany(() => Chat, chat => chat.users)
+	// * Relations
+	@OneToMany(() => ChatUser, chatUser => chatUser.chat)
 	chats: Chat[];
 
 	@OneToMany(() => Message, message => message.user)

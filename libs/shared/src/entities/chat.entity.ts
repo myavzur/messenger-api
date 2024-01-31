@@ -10,13 +10,14 @@ import {
 	UpdateDateColumn
 } from "typeorm";
 
+import { ChatUser } from "./chat-user.entity";
 import { Message } from "./message.entity";
 import { User } from "./user.entity";
 
 @Entity("chats")
 export class Chat {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryGeneratedColumn("uuid")
+	id: string;
 
 	@UpdateDateColumn()
 	updated_at: string; // ISO date string
@@ -27,31 +28,21 @@ export class Chat {
 	@Column("boolean", { default: false })
 	is_group: boolean;
 
-	@Column("smallint", {
-		default: 2,
-		comment:
-			"Минимальное значение юзеров чата 2. Поэтому логично считать это число дефолтным значением."
-	})
+	@Column("smallint", { default: 2 })
 	users_count: number;
 
-	@ManyToMany(() => User)
-	@JoinTable({
-		name: "chats_has_users",
-		joinColumn: {
-			name: "chat_id",
-			referencedColumnName: "id"
-		},
-		inverseJoinColumn: {
-			name: "user_id",
-			referencedColumnName: "id"
-		}
-	})
+	// * Relations
+	@OneToMany(() => ChatUser, chatUser => chatUser.chat)
 	users: User[];
 
-	@OneToMany(() => Message, message => message.chat)
+	@OneToMany(() => Message, message => message.chat, {})
 	messages: Message[];
 
 	@OneToOne(() => Message)
-	@JoinColumn({ name: "last_message_id", referencedColumnName: "id" })
+	@JoinColumn({
+		name: "last_message_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_chat_last_message"
+	})
 	last_message: Message;
 }

@@ -30,6 +30,9 @@ export class User {
 	@Column("varchar", { length: 120, nullable: true })
 	avatar_url: string;
 
+	@Column("timestamp", { default: () => "CURRENT_TIMESTAMP(6)", nullable: false })
+	last_seen_at: Date;
+
 	@ManyToMany(() => Chat, chat => chat.users)
 	chats: Chat[];
 

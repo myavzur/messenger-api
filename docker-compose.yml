@@ -22,16 +22,6 @@ services:
     volumes:
     - ./database/data:/var/lib/postgresql/data # If something goes wrong with container - data would be still saved in local machine inside of db/data
 
-  # DATABASE - GUI
-  # postgres_admin:
-  #   image: dpage/pgadmin4
-  #   depends_on:
-  #     - postgres
-  #   env_file:
-  #     - .env
-  #   ports:
-  #     - "15432:80"
-
   # DATABASE - Caching
   redis:
     image: redis
@@ -94,22 +84,6 @@ services:
       - /usr/src/app/node_modules # Take node_modules from docker container.
     command: npm run start:dev chat # Overrides CMD from Dockerfile
 
-  # MICROSERVICE - Meet
-  meet:
-    build:
-      context: ./
-      dockerfile: ./apps/meet/Dockerfile
-    ports:
-      - 6000:6000
-    env_file:
-      - .env
-    depends_on:
-      - rabbitmq
-    volumes:
-      - .:/usr/src/app # Any change to base folder should be reflected.
-      - /usr/src/app/node_modules # Take node_modules from docker container.
-    command: npm run start:dev meet # Overrides CMD from Dockerfile
-
   # API
   api:
     build:
@@ -124,7 +98,6 @@ services:
       - auth
       - presence
       - chat
-      - meet
     volumes:
       - .:/usr/src/app # Any change to base folder should be reflected.
       - /usr/src/app/node_modules # Take node_modules from docker container.

@@ -19,6 +19,8 @@
     "test:e2e": "jest --config ./apps/api/test/jest-e2e.json",
     "build:api": "nest build api",
     "build:auth": "nest build auth",
+    "build:chat": "nest build chat",
+    "build:presence": "nest build presence",
     "build": "npm run build:api && npm run build:auth && npm run build:chat && npm run build:presence",
     "typeorm": "npm run build && npx typeorm -d ./dist/apps/auth/database/data-source.js",
     "migration:generate": "npm run typeorm -- migration:generate",

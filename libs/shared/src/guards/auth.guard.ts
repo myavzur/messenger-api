@@ -34,7 +34,7 @@ export class AuthGuard implements CanActivate {
 		return this.authService
 			.send<UserAccessToken>({ cmd: "verify-access-token" }, { token })
 			.pipe(
-				switchMap(decodedToken => {
+				switchMap(() => {
 					return of(true);
 				}),
 				catchError(() => {

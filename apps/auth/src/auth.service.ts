@@ -89,7 +89,7 @@ export class AuthService {
 
 	// * Security - Passwords
 	async hashPassword(password: string): Promise<string> {
-		return await bcrypt.hash(password, 12);
+		return await bcrypt.hash(password, 8);
 	}
 
 	async comparePasswords(

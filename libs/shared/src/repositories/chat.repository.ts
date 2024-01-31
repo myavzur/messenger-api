@@ -57,14 +57,13 @@ export class ChatRepository extends BaseRepository<Chat> implements IChatReposit
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.users", "user")
 			.leftJoinAndSelect("chat.last_message", "last_message")
+			.leftJoinAndSelect("last_message.user", "last_message_user")
 			.where(`chat.id IN (${chatIdsQb})`)
 			.andWhere(`user.id != :userId`, { userId: payload.userId }) // Костыль
 			.orderBy("chat.updated_at", "DESC")
 			.skip((page - 1) * limit)
 			.take(limit)
 			.getManyAndCount();
-
-		console.log(chats);
 
 		const totalPages = Math.ceil(totalChats / limit);
 

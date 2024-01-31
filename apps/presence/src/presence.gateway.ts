@@ -121,8 +121,17 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		await this.emitStatus(user.id, status);
 	}
 
-	@SubscribeMessage("get-statuses")
-	async getStatuses(socket: UserSocket) {
-		const user = socket.data?.user;
-	}
+	// @SubscribeMessage("get-statuses")
+	// async getStatuses(socket: UserSocket, payload: GetUserStatusDto) {
+	// 	const connectedUser = await this.presenceService.getConnectedUserById(
+	// 		payload.userId
+	// 	);
+
+	// 	if (!connectedUser) return;
+
+	// 	socket.emit("new-status", {
+	// 		userId: payload.userId,
+	// 		status: connectedUser.status
+	// 	});
+	// }
 }

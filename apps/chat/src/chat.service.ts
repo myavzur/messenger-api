@@ -22,12 +22,6 @@ import { ConnectedUser } from "./interfaces";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 
-/* TODO: Если будет время и не лень - переписать логику создания чатов,
- * а точнее записывание {userIds} напрямую в колонку {user_id} таблицы chats_has_users
- * после создания чата, ID которого для всех {userIds} будет одинаковое.
- *
- * Это поможет оптимизировать процесс создания чатов, поскольку не придется получать каждого {User} по его {User.id}.
- */
 @Injectable()
 export class ChatService {
 	constructor(
@@ -119,6 +113,14 @@ export class ChatService {
 		};
 	}
 
+	private async createActionMessage(text: Message["text"], chatId: Chat["id"]) {
+		return await this.messageRepository.save({
+			is_system: true,
+			text: text,
+			chat: { id: chatId }
+		});
+	}
+
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
 		let chat: Chat | null = null;
 		let isCreated = false;
@@ -181,12 +183,22 @@ export class ChatService {
 			return;
 		}
 
-		return await this.chatRepository.save({
+		const chat = await this.chatRepository.save({
 			title: payload.title,
 			is_group: true,
 			users_count: users.length,
 			users
 		});
+
+		// Add system message to created group chat!
+		chat.last_message = await this.createActionMessage(
+			`Group chat "${chat.title}" has been created`,
+			chat.id
+		);
+
+		await this.chatRepository.save(chat);
+
+		return chat;
 	}
 
 	private async createLocalChat(userIds: User["id"][]) {
@@ -195,13 +207,13 @@ export class ChatService {
 		)) as User[];
 
 		if (users.length !== 2) {
-			this.logger.debug("Users not found.");
+			this.logger.debug("Some of the users wasn't found.");
 			return;
 		}
 
 		const localChat = await this.chatRepository.findLocalChat(userIds);
 		if (localChat) {
-			this.logger.debug("LocalChat already exists.");
+			this.logger.debug("Chat already exists.");
 			return;
 		}
 		return await this.chatRepository.save({ users: users });
@@ -209,7 +221,7 @@ export class ChatService {
 
 	// * Microservices
 	/** Get user from Auth server. */
-	public async getUserById(userId: User["id"]) {
+	async getUserById(userId: User["id"]) {
 		const ob$ = this.authService.send<User>(
 			{ cmd: "get-user-by-id" },
 			{ id: userId }

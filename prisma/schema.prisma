@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URI")
+}
+
+
+model User {
+  id              String      @id @default(uuid())
+  created_at      DateTime    @default(now()) @db.Timestamp(6)
+  email           String      @unique @db.VarChar(50)
+  password        String      @db.VarChar(255)
+  account_name    String      @unique @db.VarChar(30)
+  avatar_url      String?     @db.VarChar(120)
+  last_seen_at    DateTime    @default(dbgenerated("('now'::text)::timestamp(6) with time zone")) @db.Timestamp(6)
+
+  messages Message[]
+}
+
+model Chat {
+  id              String      @id @default(uuid())
+  updated_at      DateTime    @updatedAt @db.Timestamptz(6)
+  title           String?     @db.VarChar(128)
+  is_group        Boolean     @default(false)
+  users_count     Int         @default(2) @db.SmallInt
+
+  messages        Message[]   @relation("ChatMessages")
+
+  last_message_id String?     @unique
+  last_message    Message?    @relation("ChatLastMessage", fields: [last_message_id], references: [id])
+}
+
+model Message {
+  id              String      @id @default(uuid())
+  created_at      DateTime    @default(now()) @db.Timestamp(6)
+  text            String?
+
+  user_id         String
+  user            User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  chat_id         String
+  chat            Chat        @relation("ChatMessages", fields: [chat_id], references: [id], onDelete: Cascade)
+
+  lastMesasage    Chat?       @relation("ChatLastMessage")
+}
+
+enum ChatUserRole {
+  PARTICIPANT,
+  ADMIN,
+  OWNER
+}
+
+model ChatUsers {
+  id              Int         @id @default(autoincrement())
+
+  chat_id         String
+  chat            Chat        @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user_id         String
+  user            User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+
+}

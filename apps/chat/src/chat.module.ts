@@ -8,7 +8,7 @@ import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
 import { ChatUser } from "@app/shared/entities/chat-user.entity";
-import { ChatRepository, ChatUserRepository } from "@app/shared/repositories";
+import { ChatRepository } from "@app/shared/repositories";
 
 import { ChatController } from "./chat.controller";
 import { ChatGateway } from "./chat.gateway";
@@ -32,6 +32,6 @@ const CWD = process.cwd();
 		})
 	],
 	controllers: [ChatController],
-	providers: [ChatService, ChatGateway, ChatRepository, ChatUserRepository]
+	providers: [ChatService, ChatGateway, ChatRepository]
 })
 export class ChatModule {}

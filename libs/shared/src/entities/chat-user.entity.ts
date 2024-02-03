@@ -17,27 +17,8 @@ export enum ChatUserRole {
 
 @Entity("chats_has_users")
 export class ChatUser {
-	@PrimaryGeneratedColumn("increment")
-	id: number;
-
-	// * Relations
-	@ManyToOne(() => Chat, {
-		onDelete: "CASCADE"
-	})
-	@JoinColumn({
-		name: "chat_id",
-		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_chu_chat"
-	})
-	chat: Chat;
-
-	@ManyToOne(() => User)
-	@JoinColumn({
-		name: "user_id",
-		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_chu_user"
-	})
-	user: User;
+	@PrimaryGeneratedColumn("uuid")
+	id: string;
 
 	@Column({
 		type: "enum",
@@ -45,4 +26,21 @@ export class ChatUser {
 		default: ChatUserRole.PARTICIPANT
 	})
 	role: ChatUserRole;
+
+	// * Relations
+	@ManyToOne(() => Chat, chat => chat.users, { onDelete: "CASCADE" })
+	@JoinColumn({
+		name: "chat_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_chu_chat"
+	})
+	chat: Chat;
+
+	@ManyToOne(() => User, user => user.chats, { onDelete: "CASCADE" })
+	@JoinColumn({
+		name: "user_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_chu_user"
+	})
+	user: User;
 }

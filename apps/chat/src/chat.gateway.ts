@@ -20,7 +20,7 @@ import { ChatService } from "./chat.service";
 import {
 	CreateMessageDto,
 	GetAnyChatDto,
-	GetAnyChatHistoryDto,
+	GetChatHistoryDto,
 	GetUserChatsDto
 } from "./dto";
 
@@ -41,30 +41,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	async onModuleInit() {
 		await this.cache.reset();
-		this.logger.debug("Chat cache was reset.");
 	}
 
 	// * Connection handlers
 	async handleConnection(socket: UserSocket) {
-		this.logger.debug("[handleConnection]: Connection handled.");
-
 		const token = extractTokenFromHeaders(socket.handshake.headers);
-
-		if (!token) {
-			return socket.disconnect(true);
-		}
+		if (!token) return socket.disconnect(true);
 
 		const decodedToken$ = this.authService.send<UserAccessToken>(
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
+
 		const tokenPayload = await firstValueFrom(decodedToken$).catch(e =>
 			this.logger.error(e)
 		);
-
-		if (!tokenPayload || !tokenPayload.user) {
-			return socket.disconnect(true);
-		}
+		if (!tokenPayload || !tokenPayload.user) return socket.disconnect(true);
 
 		socket.data.user = tokenPayload.user;
 
@@ -88,7 +80,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		socket: UserSocket,
 		payload: Omit<GetUserChatsDto, "userId">
 	) {
-		this.logger.error("get-chats!");
 		const chats = await this.chatService.getUserChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
@@ -99,7 +90,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat")
-	async handleGetAnyChat(socket: UserSocket, payload: GetAnyChatDto) {
+	async handleGetChat(socket: UserSocket, payload: GetAnyChatDto) {
 		let chat: Chat | null = await this.chatService.getChat({
 			userId: socket.data.user.id,
 			chatId: payload.chatId
@@ -128,8 +119,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat-history")
-	async handleGetAnyChatHistory(socket: UserSocket, payload: GetAnyChatHistoryDto) {
-		const history = await this.chatService.getAnyChatHistory(payload);
+	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
+		const history = await this.chatService.getChatHistory(payload);
 
 		socket.emit("chat-history", {
 			chat_id: payload.chatId,

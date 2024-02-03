@@ -2,14 +2,13 @@ import {
 	Column,
 	CreateDateColumn,
 	Entity,
-	ManyToMany,
 	OneToMany,
 	PrimaryGeneratedColumn
 } from "typeorm";
 
+import { ChatUser } from "./chat-user.entity";
 import { Chat } from "./chat.entity";
 import { Message } from "./message.entity";
-import { ChatUser } from "./chat-user.entity";
 
 @Entity({ name: "users" })
 export class User {
@@ -35,7 +34,7 @@ export class User {
 	last_seen_at: Date;
 
 	// * Relations
-	@OneToMany(() => ChatUser, chatUser => chatUser.chat)
+	@OneToMany(() => ChatUser, chatUser => chatUser.user)
 	chats: Chat[];
 
 	@OneToMany(() => Message, message => message.user)

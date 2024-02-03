@@ -3,7 +3,6 @@ import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 
 import { RabbitMQService } from "@app/rabbitmq";
 import { Chat, User } from "@app/shared/entities";
-import { ChatUser } from "@app/shared/entities/chat-user.entity";
 
 import { ChatService } from "./chat.service";
 import { CreateGroupChatDto, CreateMessageDto, PaginatedChatsDto } from "./dto";
@@ -30,7 +29,7 @@ export class ChatController {
 	async getAllChat(
 		@Ctx() context: RmqContext,
 		@Payload() payload: GetUserChatsDto
-	): Promise<ChatUser[]> {
+	): Promise<PaginatedChatsDto> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
 		return await this.chatService.getUserChats(payload);

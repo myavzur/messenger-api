@@ -21,7 +21,7 @@ export class Message {
 	@Column("text", { nullable: true })
 	text: string;
 
-	// Relations
+	// * Relations
 	@ManyToOne(() => User, user => user.messages, {
 		onDelete: "CASCADE"
 	})

@@ -1,14 +1,19 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 import { DataSource } from "typeorm";
 
 import { Chat, User } from "../entities";
+import { ChatUser } from "../entities/chat-user.entity";
 import { pagination } from "../helpers";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
-import { IChatRepository, IUpdateUsersParams } from "./chat.repository.interface";
+import { IChatRepository } from "./chat.repository.interface";
 
 const MAX_CHATS_LIMIT_PER_PAGE = 20;
+
+/* Useful information about subqueries cna be found in Typeorm docs:
+ * https://orkhan.gitbook.io/typeorm/docs/select-query-builder#using-subqueries
+ */
 
 @Injectable()
 export class ChatRepository
@@ -17,6 +22,42 @@ export class ChatRepository
 {
 	constructor(private dataSource: DataSource) {
 		super(Chat, dataSource.createEntityManager());
+	}
+
+	logger: Logger = new Logger(ChatRepository.name);
+
+	/** Get all chats in which the user participates. */
+	async getUserChats(userId: User["id"]): Promise<PaginatedChatsDto> {
+		const currentPage = 1;
+		const limit = MAX_CHATS_LIMIT_PER_PAGE;
+
+		const [chats, totalChats] = await this.createQueryBuilder("chat")
+			.leftJoinAndSelect("chat.last_message", "last_message")
+			.leftJoinAndSelect("last_message.user", "last_message_user")
+			.leftJoinAndSelect("chat.users", "chatUser")
+			.leftJoinAndSelect("chatUser.user", "user")
+			.where(qb => {
+				const subQuery = qb
+					.subQuery()
+					.select("chat_user.chat_id")
+					.from(ChatUser, "chat_user")
+					.where("chat_user.user_id = :userId", { userId })
+					.getQuery();
+				return `chat.id IN ${subQuery}`;
+			})
+			.orderBy("chat.updated_at", "DESC")
+			.skip((currentPage - 1) * limit)
+			.take(limit)
+			.getManyAndCount();
+
+		const totalPages = Math.ceil(totalChats / limit);
+
+		return {
+			chats,
+			totalItems: totalChats,
+			totalPages,
+			currentPage
+		};
 	}
 
 	async getLocalChats(userId: User["id"]): Promise<Chat[]> {

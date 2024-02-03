@@ -6,9 +6,8 @@ import { Repository } from "typeorm";
 
 import { RedisService } from "@app/redis";
 import { Chat, Message, User } from "@app/shared/entities";
-import { ChatUser } from "@app/shared/entities/chat-user.entity";
 import { pagination } from "@app/shared/helpers";
-import { ChatRepository, ChatUserRepository } from "@app/shared/repositories";
+import { ChatRepository } from "@app/shared/repositories";
 
 import {
 	CreateGroupChatDto,
@@ -18,7 +17,7 @@ import {
 	PaginatedChatsDto,
 	PaginatedMessagesDto
 } from "./dto";
-import { GetAnyChatHistoryDto } from "./dto";
+import { GetChatHistoryDto } from "./dto";
 import { ConnectedUser } from "./interfaces";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
@@ -30,8 +29,6 @@ export class ChatService {
 		private readonly authService: ClientProxy,
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
-		@InjectRepository(ChatUserRepository)
-		private readonly chatUserRepository: ChatUserRepository,
 		@InjectRepository(Message)
 		private readonly messageRepository: Repository<Message>,
 		private readonly cache: RedisService
@@ -57,8 +54,12 @@ export class ChatService {
 	}
 
 	// * Chats
-	async getUserChats(payload: GetUserChatsDto): Promise<ChatUser[]> {
-		return await this.chatRepository.getAllChats(payload);
+	async getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
+		return await this.chatRepository.getUserChats(payload.userId);
+	}
+
+	async getLocalChats(userId: User["id"]) {
+		return await this.chatRepository.getLocalChats(userId);
 	}
 
 	/** Get base information about chat: id, updated_at, title, users */
@@ -82,9 +83,7 @@ export class ChatService {
 	}
 
 	/** Get messages from any chat */
-	async getAnyChatHistory(
-		payload: GetAnyChatHistoryDto
-	): Promise<PaginatedMessagesDto> {
+	async getChatHistory(payload: GetChatHistoryDto): Promise<PaginatedMessagesDto> {
 		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
 		if (!chat) return null;
 
@@ -114,14 +113,6 @@ export class ChatService {
 			totalPages,
 			currentPage: page
 		};
-	}
-
-	private async createActionMessage(text: Message["text"], chatId: Chat["id"]) {
-		return await this.messageRepository.save({
-			is_system: true,
-			text: text,
-			chat: { id: chatId }
-		});
 	}
 
 	async createMessage(userId: User["id"], payload: CreateMessageDto) {
@@ -172,10 +163,6 @@ export class ChatService {
 		return { message, chat, isCreated };
 	}
 
-	async getLocalChats(userId: User["id"]) {
-		return await this.chatRepository.getLocalChats(userId);
-	}
-
 	async createGroupChat(payload: CreateGroupChatDto) {
 		const users = (await Promise.all(
 			payload.userIds.map(userId => this.getUserById(userId))
@@ -192,14 +179,6 @@ export class ChatService {
 			users_count: users.length,
 			users
 		});
-
-		// Add system message to created group chat!
-		chat.last_message = await this.createActionMessage(
-			`Group chat "${chat.title}" has been created`,
-			chat.id
-		);
-
-		await this.chatRepository.save(chat);
 
 		return chat;
 	}

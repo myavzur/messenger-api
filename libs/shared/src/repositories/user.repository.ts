@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { DataSource, ILike } from "typeorm";
+import { DataSource, FindOptionsWhere, ILike } from "typeorm";
 
-import { User } from "../entities";
+import { Chat, ChatParticipant, ChatType, User } from "../entities";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
-	IGetUsersBasedOnLocalChatsResult,
+	IGetUserByEmailOrAccountNameParams,
+	IGetUsersBasedOnLocalChatsRow,
 	IUserRepository
 } from "./user.repository.interface";
 
@@ -18,21 +19,14 @@ export class UserRepository
 		super(User, dataSource.createEntityManager());
 	}
 
-	/** Returns User[] for {userId} based on local chats of {userId}.
-	 * @example
-	 * import React from "react";
+	/** Retrieves users based on local chats of `userId`.
 	 *
-	 * // We only want to give current user opportunity to add users with which he already talked.
-	 * const usersForGroupChat = await this.userRepository
-	 * 	.getUsersBasedOnLocalChats(currentUser.id);
-	 *
-	 * usersForGroupChat.map(user => (
-	 * 	<button>"Add {user.id} to Group Chat"</button>
-	 * )
+	 * @param {User["id"]} userId - The ID of the user
+	 * @return {Promise<User[]>} The users based on local chats of `userId`
 	 */
 	async getUsersBasedOnLocalChats(
 		userId: User["id"]
-	): IGetUsersBasedOnLocalChatsResult {
+	): Promise<IGetUsersBasedOnLocalChatsRow[]> {
 		return await this.dataSource.query(
 			`
 				SELECT
@@ -41,15 +35,18 @@ export class UserRepository
 					users.avatar_url,
 					chats.id as chat_id
 				FROM users
-				INNER JOIN chats_has_users cu ON cu.user_id = users.id
-				INNER JOIN chats_has_users cuA ON cu.chat_id = cuA.chat_id
-				INNER JOIN chats ON chats.id = cuA.chat_id
+				INNER JOIN chats_has_participants participant
+					ON participant.user_id = users.id
+				INNER JOIN chats_has_participants participantB
+					ON participant.chat_id = participantB.chat_id
+				INNER JOIN chats
+					ON chats.id = participantB.chat_id
 				WHERE
-					cu.user_id != $1 AND
-					cuA.user_id = $1 AND
-					chats.is_group = false
+					participant.user_id != $1 AND
+					participantB.user_id = $1 AND
+					chats.type = $2
 			`,
-			[userId]
+			[userId, ChatType.LOCAL]
 		);
 	}
 
@@ -59,10 +56,14 @@ export class UserRepository
 		});
 	}
 
-	/** Returns User with `password` column. */
-	async getUserByEmail(email: string): Promise<User> {
+	/** Returns User with `password` and `email` column. */
+	async getUserByEmailOrAccountName(
+		params: IGetUserByEmailOrAccountNameParams
+	): Promise<User> {
+		const { email, accountName } = params;
+
 		return await this.findOne({
-			where: { email },
+			where: [{ email }, { account_name: accountName }],
 			select: ["id", "email", "password", "account_name", "avatar_url"]
 		});
 	}

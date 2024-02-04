@@ -4,6 +4,7 @@ import {
 	Entity,
 	JoinColumn,
 	ManyToOne,
+	OneToOne,
 	PrimaryGeneratedColumn
 } from "typeorm";
 
@@ -22,6 +23,14 @@ export class Message {
 	text: string;
 
 	// * Relations
+	@OneToOne(() => Message, message => message.reply_for)
+	@JoinColumn({
+		name: "reply_for_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_reply_for"
+	})
+	reply_for: Message;
+
 	@ManyToOne(() => User, user => user.messages, {
 		onDelete: "CASCADE"
 	})

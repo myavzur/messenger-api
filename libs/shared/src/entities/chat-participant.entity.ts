@@ -9,26 +9,27 @@ import {
 import { Chat } from "./chat.entity";
 import { User } from "./user.entity";
 
-export enum ChatUserRole {
-	PARTICIPANT,
-	ADMIN,
-	OWNER
+export enum ChatParticipantRole {
+	PARTICIPANT = "participant",
+	ADMIN = "admin",
+	OWNER = "owner"
 }
 
-@Entity("chats_has_users")
-export class ChatUser {
+@Entity("chats_has_participants")
+export class ChatParticipant {
 	@PrimaryGeneratedColumn("uuid")
 	id: string;
 
 	@Column({
 		type: "enum",
-		enum: ChatUserRole,
-		default: ChatUserRole.PARTICIPANT
+		enum: ChatParticipantRole,
+		default: ChatParticipantRole.PARTICIPANT
 	})
-	role: ChatUserRole;
+	role: ChatParticipantRole;
 
 	// * Relations
-	@ManyToOne(() => Chat, chat => chat.users, { onDelete: "CASCADE" })
+	chat_id: Chat["id"];
+	@ManyToOne(() => Chat, chat => chat.participants, { onDelete: "CASCADE" })
 	@JoinColumn({
 		name: "chat_id",
 		referencedColumnName: "id",
@@ -36,7 +37,8 @@ export class ChatUser {
 	})
 	chat: Chat;
 
-	@ManyToOne(() => User, user => user.chats, { onDelete: "CASCADE" })
+	user_id: User["id"];
+	@ManyToOne(() => User, user => user.participates, { onDelete: "CASCADE" })
 	@JoinColumn({
 		name: "user_id",
 		referencedColumnName: "id",

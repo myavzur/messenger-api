@@ -1,6 +1,6 @@
-import { Chat, User } from "@app/shared/entities";
+import { Chat, ChatType, User } from "@app/shared/entities";
 
-export class GetAnyChatDto {
-	userId: User["id"];
-	chatId: Chat["id"];
+export class GetChatDto {
+	currentUserId: User["id"];
+	polymorphicId: Chat["id"] | User["id"];
 }

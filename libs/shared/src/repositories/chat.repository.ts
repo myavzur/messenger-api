@@ -1,17 +1,27 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetChatDto, GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 import { DataSource } from "typeorm";
 
-import { Chat, User } from "../entities";
-import { ChatUser } from "../entities/chat-user.entity";
-import { pagination } from "../helpers";
+import {
+	Chat,
+	ChatParticipant,
+	ChatParticipantRole,
+	ChatType,
+	User
+} from "@app/shared/entities";
+import { pagination } from "@app/shared/helpers";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
-import { IChatRepository } from "./chat.repository.interface";
+import {
+	IChatRepository,
+	ICreateChatParams,
+	IDeleteChatParams,
+	IUpdateChatParticipantsParams
+} from "./chat.repository.interface";
 
-const MAX_CHATS_LIMIT_PER_PAGE = 20;
+const MAX_CHATS_PER_PAGE_LIMIT = 20;
 
-/* Useful information about subqueries cna be found in Typeorm docs:
+/* Useful information about subqueries can be found in Typeorm docs:
  * https://orkhan.gitbook.io/typeorm/docs/select-query-builder#using-subqueries
  */
 
@@ -26,31 +36,113 @@ export class ChatRepository
 
 	logger: Logger = new Logger(ChatRepository.name);
 
+	async createChat(params: ICreateChatParams): Promise<Chat> {
+		const { creatorId, participantsIds, title, type } = params;
+
+		const chat = await this.save({ title, type });
+
+		await this.createParticipants({
+			chatId: chat.id,
+			creatorId,
+			participantsIds
+		});
+
+		return await this.findOne({
+			where: { id: chat.id },
+			relations: {
+				last_message: {
+					user: true
+				}
+			}
+		});
+	}
+
+	async deleteChat(params: IDeleteChatParams): Promise<void> {
+		const { chatId } = params;
+		await this.delete({ id: chatId });
+	}
+
+	async createParticipants(
+		params: IUpdateChatParticipantsParams
+	): Promise<Chat | null> {
+		const { chatId, creatorId, participantsIds } = params;
+
+		const chat = await this.findOne({
+			where: { id: chatId },
+			relations: { participants: true }
+		});
+		if (!chat) return null;
+
+		const creatorParticipant = creatorId && new ChatParticipant();
+		if (creatorParticipant) {
+			creatorParticipant.role = ChatParticipantRole.OWNER;
+			creatorParticipant.user = { id: creatorId } as User;
+			creatorParticipant.chat = { id: chat.id } as Chat;
+			await this.dataSource.manager.save(creatorParticipant);
+		}
+
+		const participants = (await Promise.all(
+			participantsIds.map(participantId => {
+				const participant = new ChatParticipant();
+				participant.role = ChatParticipantRole.PARTICIPANT;
+				participant.user = { id: participantId } as User;
+				participant.chat = { id: chat.id } as Chat;
+				return this.dataSource.manager.save(participant);
+			})
+		)) as ChatParticipant[];
+
+		chat.participants = [...chat.participants, ...participants, creatorParticipant];
+		chat.participants_count = chat.participants.length;
+
+		await this.manager.save(chat);
+	}
+
+	async deleteParticipants(params: IUpdateChatParticipantsParams): Promise<void> {
+		const { chatId, participantsIds } = params;
+
+		const chat = await this.findOne({
+			where: { id: chatId },
+			relations: { participants: true }
+		});
+
+		chat.participants = chat.participants.filter(participant => {
+			const shouldDelete = participantsIds.includes(participant.user.id);
+			const isOwner = participant.role === ChatParticipantRole.OWNER;
+			// Impossible to kick the owner.
+			return !shouldDelete || isOwner;
+		});
+		chat.participants_count = chat.participants.length;
+
+		await this.save(chat);
+	}
+
 	/** Get all chats in which the user participates. */
-	async getUserChats(userId: User["id"]): Promise<PaginatedChatsDto> {
-		const currentPage = 1;
-		const limit = MAX_CHATS_LIMIT_PER_PAGE;
+	async getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto> {
+		const { page, limit, userId } = params;
+
+		const currentPage = pagination.getPage(page);
+		const currentLimit = pagination.getLimit(limit, MAX_CHATS_PER_PAGE_LIMIT);
 
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
+			.leftJoinAndSelect("chat.participants", "participant")
+			.leftJoinAndSelect("participant.user", "user")
 			.leftJoinAndSelect("chat.last_message", "last_message")
 			.leftJoinAndSelect("last_message.user", "last_message_user")
-			.leftJoinAndSelect("chat.users", "chatUser")
-			.leftJoinAndSelect("chatUser.user", "user")
 			.where(qb => {
 				const subQuery = qb
 					.subQuery()
-					.select("chat_user.chat_id")
-					.from(ChatUser, "chat_user")
-					.where("chat_user.user_id = :userId", { userId })
+					.select("participant.chat_id")
+					.from(ChatParticipant, "participant")
+					.where("participant.user_id = :userId", { userId })
 					.getQuery();
 				return `chat.id IN ${subQuery}`;
 			})
 			.orderBy("chat.updated_at", "DESC")
-			.skip((currentPage - 1) * limit)
-			.take(limit)
+			.skip((currentPage - 1) * currentLimit)
+			.take(currentLimit)
 			.getManyAndCount();
 
-		const totalPages = Math.ceil(totalChats / limit);
+		const totalPages = Math.ceil(totalChats / currentLimit);
 
 		return {
 			chats,
@@ -60,62 +152,101 @@ export class ChatRepository
 		};
 	}
 
+	async getChat(params: GetChatDto): Promise<Chat> {
+		const { currentUserId, polymorphicId } = params;
+
+		const getChat = async (chatId: Chat["id"]): Promise<Chat> => {
+			return await this.findOne({
+				where: { id: chatId },
+				relations: {
+					participants: {
+						user: true
+					},
+					last_message: true
+				}
+			});
+		};
+
+		const getTemporaryChat = async (
+			fromUserId: User["id"],
+			toUserId: User["id"]
+		): Promise<Chat> => {
+			const fromUser = await this.dataSource
+				.getRepository(User)
+				.findOneBy({ id: fromUserId });
+			const toUser = await this.dataSource
+				.getRepository(User)
+				.findOneBy({ id: toUserId });
+
+			return {
+				participants: [
+					{
+						id: "joker",
+						role: ChatParticipantRole.OWNER,
+						user: fromUser,
+						chat: null,
+						chat_id: "whatever?",
+						user_id: "fuck u"
+					},
+					{
+						id: "listener",
+						role: ChatParticipantRole.PARTICIPANT,
+						user: toUser,
+						chat: null,
+						chat_id: "whatever?",
+						user_id: "fuck u"
+					}
+				],
+				participants_count: 2,
+				type: ChatType.TEMP,
+				id: null,
+				title: null,
+				updated_at: null,
+				messages: null,
+				last_message: null
+			};
+		};
+
+		let chat = await getChat(polymorphicId);
+		if (!chat) chat = await this.getLocalChat([currentUserId, polymorphicId]);
+		if (!chat) chat = await getTemporaryChat(currentUserId, polymorphicId);
+
+		return chat;
+	}
+
 	async getLocalChats(userId: User["id"]): Promise<Chat[]> {
-		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
-			.select("chatsIdsQuery.id")
-			.innerJoin("chatsIdsQuery.users", "user")
-			.where("user.id = :userId", { userId: userId })
-			.andWhere("is_group = false")
+		const chatsIdsQuery = await this.createQueryBuilder("chat")
+			.select("chat.id")
+			.innerJoin("chat.participants", "participant")
+			.where("participant.user_id = :userId", { userId: userId })
+			.andWhere("type = :chatType", { chatType: ChatType.LOCAL })
 			.getQuery();
 
 		return await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
+			.leftJoinAndSelect("chat.participants", "participant")
 			.where(`chat.id IN (${chatsIdsQuery})`)
-			.andWhere("user.id != :userId", { userId: userId })
+			// .andWhere("participant.id != :userId", { userId: userId })
 			.getMany();
 	}
 
+	// TODO: MAKE IT GREAT AGAIN!
 	async getLocalChat(userIds: User["id"][]): Promise<Chat> {
 		return await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("chat.users", "user")
-			.where("chat.is_group = false")
-			.andWhere("user.id = :firstUserId", { firstUserId: userIds[0] })
-			.andWhere("user.id = :secondUserId", { secondUserId: userIds[1] })
+			.leftJoinAndSelect("chat.participants", "participant")
+			.where(qb => {
+				const subQuery = qb
+					.subQuery()
+					.select("participant.chat_id")
+					.from(ChatParticipant, "participant")
+					.where("participant.user_id = :firstUserId", { firstUserId: userIds[0] })
+					.andWhere("participant.user_id = :secondUserId", {
+						secondUserId: userIds[1]
+					})
+					.getQuery();
+				return `chat.id IN ${subQuery}`;
+			})
+			.andWhere("chat.type = :chatType", { chatType: ChatType.LOCAL })
 			.getOne();
-	}
-
-	/** Find any chats where user consists of. */
-	async getAllChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
-		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
-		const page = pagination.getPage(payload.page);
-
-		// Get chat IDs where {userId} is a member.
-		const chatIdsQb = await this.createQueryBuilder("chat")
-			.select("chat.id")
-			.innerJoin("chat.users", "user")
-			.where("user.id = :userId", { userId: payload.userId })
-			.getQuery();
-
-		// TODO: Можно подумать как делать JOIN юзеров только в том случае если чат !is_group.
-		const [chats, totalChats] = await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
-			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("last_message.user", "last_message_user")
-			.where(`chat.id IN (${chatIdsQb})`)
-			.andWhere(`user.id != :userId`, { userId: payload.userId }) // Костыль
-			.orderBy("chat.updated_at", "DESC")
-			.skip((page - 1) * limit)
-			.take(limit)
-			.getManyAndCount();
-
-		const totalPages = Math.ceil(totalChats / limit);
-
-		return {
-			chats,
-			totalItems: totalChats,
-			totalPages,
-			currentPage: page
-		};
 	}
 }

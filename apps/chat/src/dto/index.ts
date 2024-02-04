@@ -1,9 +1,10 @@
-export { CreateGroupChatDto } from "./create-group-chat.dto";
-export { CreateMessageDto } from "./create-message.dto";
+export * from "./create-group-chat.dto";
+export * from "./create-local-chat.dto";
+export * from "./create-message.dto";
 
-export { PaginatedChatsDto } from "./paginated-chats.dto";
-export { PaginatedMessagesDto } from "./paginated-messages.dto";
+export * from "./paginated-chats.dto";
+export * from "./paginated-messages.dto";
 
-export { GetAnyChatDto } from "./get-chat.dto";
-export { GetChatHistoryDto } from "./get-chat-history.dto";
-export { GetUserChatsDto } from "./get-user-chats.dto";
+export * from "./get-chat.dto";
+export * from "./get-chat-history.dto";
+export * from "./get-user-chats.dto";

@@ -6,9 +6,13 @@ import {
 	PrimaryGeneratedColumn
 } from "typeorm";
 
-import { ChatUser } from "./chat-user.entity";
-import { Chat } from "./chat.entity";
+import { ChatParticipant } from "./chat-participant.entity";
 import { Message } from "./message.entity";
+
+export enum UserRole {
+	USER = "user",
+	ADMIN = "admin"
+}
 
 @Entity({ name: "users" })
 export class User {
@@ -18,24 +22,31 @@ export class User {
 	@CreateDateColumn()
 	created_at: Date;
 
-	@Column("varchar", { length: 50, unique: true })
+	@Column("varchar", { length: 30, unique: true })
+	account_name: string;
+
+	@Column({
+		type: "enum",
+		enum: UserRole,
+		default: UserRole.USER
+	})
+	role: UserRole;
+
+	@Column("varchar", { length: 120, nullable: true })
+	avatar_url: string;
+
+	@Column("varchar", { length: 50, unique: true, select: false })
 	email: string;
 
 	@Column("varchar", { length: 255, select: false })
 	password: string;
 
-	@Column("varchar", { length: 30, unique: true })
-	account_name: string;
-
-	@Column("varchar", { length: 120, nullable: true })
-	avatar_url: string;
-
 	@Column("timestamp", { default: () => "CURRENT_TIMESTAMP(6)", nullable: false })
 	last_seen_at: Date;
 
 	// * Relations
-	@OneToMany(() => ChatUser, chatUser => chatUser.user)
-	chats: Chat[];
+	@OneToMany(() => ChatParticipant, chatParticipant => chatParticipant.user)
+	participates: ChatParticipant[];
 
 	@OneToMany(() => Message, message => message.user)
 	messages: Message[];

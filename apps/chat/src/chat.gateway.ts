@@ -11,7 +11,7 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { Chat } from "@app/shared/entities";
+import { Chat, ChatType } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
@@ -19,12 +19,10 @@ import { UserSocket } from "@app/shared/interfaces";
 import { ChatService } from "./chat.service";
 import {
 	CreateMessageDto,
-	GetAnyChatDto,
+	GetChatDto,
 	GetChatHistoryDto,
 	GetUserChatsDto
 } from "./dto";
-
-const TEMPORARY_CHAT_ID = "TMP";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -39,10 +37,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	server: Server;
 	logger: Logger = new Logger(ChatGateway.name);
 
-	async onModuleInit() {
-		await this.cache.reset();
-	}
-
 	// * Connection handlers
 	async handleConnection(socket: UserSocket) {
 		const token = extractTokenFromHeaders(socket.handshake.headers);
@@ -53,24 +47,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			{ token }
 		);
 
-		const tokenPayload = await firstValueFrom(decodedToken$).catch(e =>
+		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
 			this.logger.error(e)
 		);
-		if (!tokenPayload || !tokenPayload.user) return socket.disconnect(true);
+		if (!decodedToken || !decodedToken.user) return socket.disconnect(true);
 
-		socket.data.user = tokenPayload.user;
+		socket.data.user = decodedToken.user;
 
-		await this.chatService.setConnectedUser({
+		await this.cache.setChatUser({
 			socketId: socket.id,
-			userId: tokenPayload.user.id
+			userId: decodedToken.user.id
 		});
 	}
 
 	async handleDisconnect(socket: UserSocket) {
-		this.logger.debug("[handleDisconnect]: Disconnect handled.");
-
 		if (socket.data?.user) {
-			await this.chatService.deleteConnectedUserById(socket.data.user.id);
+			await this.cache.deleteChatUser(socket.data.user.id);
 		}
 	}
 
@@ -90,30 +82,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat")
-	async handleGetChat(socket: UserSocket, payload: GetAnyChatDto) {
-		let chat: Chat | null = await this.chatService.getChat({
-			userId: socket.data.user.id,
-			chatId: payload.chatId
+	async handleGetChat(socket: UserSocket, payload: GetChatDto) {
+		const chat = await this.chatService.getChat({
+			currentUserId: socket.data.user.id,
+			polymorphicId: payload.polymorphicId
 		});
-
-		if (!chat && payload.userId) {
-			const user = await this.chatService.getUserById(payload.userId);
-			if (!user) return;
-
-			const currentDate = new Date();
-			const timestamp = currentDate.toISOString().slice(0, 23).replace("T", " ");
-
-			// Make temporary chat with mock data
-			chat = {
-				id: TEMPORARY_CHAT_ID,
-				is_group: false,
-				users: [user],
-				messages: [],
-				last_message: null,
-				title: null,
-				updated_at: timestamp
-			} as Chat;
-		}
 
 		socket.emit("chat", chat);
 	}
@@ -132,20 +105,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const { chat, message, isCreated } = await this.chatService.createMessage(
+		const { chat, message, hasBeenCreated } = await this.chatService.createMessage(
 			socket.data.user.id,
 			newMessage
 		);
 
-		chat.users.forEach(async user => {
-			const connectedUser = await this.chatService.getConnectedUserById(user.id);
+		chat.participants.forEach(async chatParticipant => {
+			const connectedUser = await this.cache.getChatUser(chatParticipant.user.id);
 			if (!connectedUser) return;
 
 			this.server
 				.to(connectedUser.socketId)
 				.emit("new-message", { chat_id: chat.id, message });
 
-			if (isCreated) {
+			if (hasBeenCreated) {
 				this.server.to(connectedUser.socketId).emit("chat-created", chat);
 			}
 		});

@@ -2,15 +2,14 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
 import { firstValueFrom } from "rxjs";
-import { Repository } from "typeorm";
 
-import { RedisService } from "@app/redis";
-import { Chat, ChatType, Message, User } from "@app/shared/entities";
+import { Chat, ChatType, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
-import { ChatRepository } from "@app/shared/repositories";
+import { ChatRepository, MessageRepository } from "@app/shared/repositories";
 
 import {
 	CreateGroupChatDto,
+	CreateLocalChatDto,
 	CreateMessageDto,
 	GetChatDto,
 	GetUserChatsDto,
@@ -28,9 +27,8 @@ export class ChatService {
 		private readonly authService: ClientProxy,
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
-		@InjectRepository(Message)
-		private readonly messageRepository: Repository<Message>,
-		private readonly cache: RedisService
+		@InjectRepository(MessageRepository)
+		private readonly messageRepository: MessageRepository
 	) {}
 
 	logger: Logger = new Logger(ChatService.name);
@@ -47,135 +45,125 @@ export class ChatService {
 	/** Get base information about chat: id, updated_at, title, users */
 	async getChat(payload: GetChatDto): Promise<Chat | null> {
 		const chat = await this.chatRepository.getChat(payload);
+		if (!chat) {
+			this.logger.warn(
+				`getChat: No chat found. Payload: ${JSON.stringify(payload)}`
+			);
+			return;
+		}
 
-		console.log(chat);
+		const isParticipant = Boolean(
+			chat.participants.find(
+				participant => participant.user.id === payload.currentUserId
+			)
+		);
 
-		const isParticipant =
-			chat.type === ChatType.TEMP ||
-			Boolean(chat.users.find(user => user.id === payload.currentUserId));
+		if (!isParticipant) {
+			this.logger.warn(
+				`getChat: User isn't a member of requested chat. Payload: ${JSON.stringify(
+					payload
+				)}`
+			);
+			return;
+		}
 
-		// If user isn't a member of requested chat - don't return this chat.
-		if (!isParticipant) return null;
 		return chat;
 	}
 
 	/** Get messages from any chat */
 	async getChatHistory(payload: GetChatHistoryDto): Promise<PaginatedMessagesDto> {
-		const chat = await this.chatRepository.findOneBy({ id: payload.chatId });
+		const { chatId, page, limit } = payload;
+
+		const chat = await this.chatRepository.findOneById(chatId);
 		if (!chat) return null;
 
-		const page = pagination.getPage(payload.page);
-		const limit = pagination.getLimit(
-			payload.limit,
-			MAX_CHAT_HISTORY_LIMIT_PER_PAGE
-		);
+		const currentPage = pagination.getPage(page);
+		const currentLimit = pagination.getLimit(limit, MAX_CHAT_HISTORY_LIMIT_PER_PAGE);
 
 		const [messages, totalMessages] = await this.messageRepository.findAndCount({
 			where: { chat: { id: chat.id } },
-			skip: (page - 1) * limit,
-			take: limit,
+			skip: (currentPage - 1) * currentLimit,
+			take: currentLimit,
 			order: {
-				id: "DESC"
+				created_at: "DESC"
 			},
 			relations: {
 				user: true
 			}
 		});
 
-		const totalPages = Math.ceil(totalMessages / limit);
+		const totalPages = Math.ceil(totalMessages / currentLimit);
 
 		return {
 			messages,
 			totalItems: totalMessages,
 			totalPages,
-			currentPage: page
+			currentPage
 		};
 	}
 
-	async createMessage(userId: User["id"], payload: CreateMessageDto) {
+	async createMessage(creatorId: User["id"], payload: CreateMessageDto) {
 		let chat: Chat | null = null;
-		let isCreated = false;
+		let hasBeenCreated = false;
 
-		if (payload.chatId && payload.chatId !== "TMP") {
+		if (payload.chatId) {
 			chat = await this.chatRepository.findOneById(payload.chatId);
 		}
 
 		if (!chat && payload.userId) {
-			chat = await this.createLocalChat([userId, payload.userId]);
-			isCreated = true;
+			chat = await this.createLocalChat({
+				creatorId,
+				participantId: payload.userId
+			});
+			hasBeenCreated = true;
 		}
 
 		if (!chat) {
-			this.logger.debug("No chat created");
+			this.logger.warn(
+				`createMessage: Chat wasn't created! Payload: ${JSON.stringify(
+					payload
+				)}, creatorId: ${creatorId}`
+			);
+			return;
 		}
 
-		// * Message
-		let message = await this.messageRepository.save({
-			user: { id: userId },
-			text: payload.text,
-			chat
+		const message = await this.messageRepository.createMessage({
+			chat,
+			creatorId,
+			text: payload.text
 		});
 
-		// Get message with creator
-		message = await this.messageRepository.findOne({
-			where: { id: message.id },
-			relations: { user: true }
-		});
+		await this.chatRepository.save({ ...chat, last_message: message });
 
-		// * Chat
-		chat = await this.chatRepository.save({
-			...chat,
-			last_message: message
-		});
-
-		// Get chat with {users} and {last_message}
 		chat = await this.chatRepository.findOne({
 			where: { id: chat.id },
 			relations: {
-				users: true,
-				last_message: true
+				participants: {
+					user: true
+				},
+				last_message: hasBeenCreated
 			}
 		});
 
-		return { message, chat, isCreated };
+		return { message, chat, hasBeenCreated };
 	}
 
 	async createGroupChat(payload: CreateGroupChatDto) {
-		const users = (await Promise.all(
-			payload.userIds.map(userId => this.getUserById(userId))
-		)) as User[];
-
-		if (users.length < 2) {
-			this.logger.debug("Number of users are to low");
-			return;
-		}
-
-		const chat = await this.chatRepository.save({
+		return await this.chatRepository.createChat({
+			creatorId: payload.creatorId,
 			title: payload.title,
-			is_group: true,
-			users_count: users.length,
-			users
+			participantsIds: payload.participantsIds,
+			type: ChatType.GROUP
 		});
-
-		return chat;
 	}
 
-	private async createLocalChat(userIds: User["id"][]) {
-		const users = (await Promise.all(
-			userIds.map(userId => this.getUserById(userId))
-		)) as User[];
-
-		if (users.length !== 2) {
-			this.logger.debug("Some of the users wasn't found.");
-			return;
-		}
-
-		const localChat = await this.chatRepository.getLocalChat(userIds);
-		if (localChat) {
-			this.logger.debug("Chat already exists.");
-			return;
-		}
-		return await this.chatRepository.save({ users: users });
+	/** Creates local chat between `creatorId` and `participantId`.  */
+	async createLocalChat(payload: CreateLocalChatDto) {
+		return await this.chatRepository.createChat({
+			creatorId: payload.creatorId,
+			participantsIds: [payload.participantId],
+			type: ChatType.LOCAL
+		});
 	}
 
 	// * Microservices

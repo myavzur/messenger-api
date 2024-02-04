@@ -105,20 +105,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
 		if (!newMessage) return null;
 
-		const { chat, message, isCreated } = await this.chatService.createMessage(
+		const { chat, message, hasBeenCreated } = await this.chatService.createMessage(
 			socket.data.user.id,
 			newMessage
 		);
 
-		chat.users.forEach(async user => {
-			const connectedUser = await this.cache.getChatUser(user.id);
+		chat.participants.forEach(async chatParticipant => {
+			const connectedUser = await this.cache.getChatUser(chatParticipant.user.id);
 			if (!connectedUser) return;
 
 			this.server
 				.to(connectedUser.socketId)
 				.emit("new-message", { chat_id: chat.id, message });
 
-			if (isCreated) {
+			if (hasBeenCreated) {
 				this.server.to(connectedUser.socketId).emit("chat-created", chat);
 			}
 		});

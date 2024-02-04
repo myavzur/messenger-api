@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { DataSource, ILike } from "typeorm";
 
-import { User } from "../entities";
+import { ChatType, User } from "../entities";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
@@ -41,15 +41,18 @@ export class UserRepository
 					users.avatar_url,
 					chats.id as chat_id
 				FROM users
-				INNER JOIN chats_has_users cu ON cu.user_id = users.id
-				INNER JOIN chats_has_users cuA ON cu.chat_id = cuA.chat_id
-				INNER JOIN chats ON chats.id = cuA.chat_id
+				INNER JOIN chats_has_participants participant
+					ON participant.user_id = users.id
+				INNER JOIN chats_has_participants participantB
+					ON participant.chat_id = participantB.chat_id
+				INNER JOIN chats
+					ON chats.id = participantB.chat_id
 				WHERE
-					cu.user_id != $1 AND
-					cuA.user_id = $1 AND
-					chats.is_group = false
+					participant.user_id != $1 AND
+					participantB.user_id = $1 AND
+					chats.type = $2
 			`,
-			[userId]
+			[userId, ChatType.LOCAL]
 		);
 	}
 

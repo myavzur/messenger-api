@@ -8,9 +8,8 @@ import {
 	UpdateDateColumn
 } from "typeorm";
 
-import { ChatUser } from "./chat-user.entity";
+import { ChatParticipant } from "./chat-participant.entity";
 import { Message } from "./message.entity";
-import { User } from "./user.entity";
 
 export enum ChatType {
 	/** Такие чаты не хранятся в базе данных!
@@ -40,11 +39,11 @@ export class Chat {
 	title: string;
 
 	@Column("smallint", { default: 2 })
-	users_count: number;
+	participants_count: number;
 
 	// * Relations
-	@OneToMany(() => ChatUser, chatUser => chatUser.chat)
-	users: User[];
+	@OneToMany(() => ChatParticipant, chatParticipant => chatParticipant.chat)
+	participants: ChatParticipant[];
 
 	@OneToMany(() => Message, message => message.chat, {})
 	messages: Message[];

@@ -50,11 +50,6 @@ $ nvm use
 $ npm ci
 ```
 
-### Terminology 📘
-- **Local Chat** - `Chat` between only 2 users, flag `is_group = true`
-- **Group Chat** - `Chat` between 2+ users, flag `is_group = false`
-- **Any Chat** - **Local Chat** or **Group Chat**
-
 ### Software ⚙️
 
 - _`RabbitMQ`_ is running on default `5672` port

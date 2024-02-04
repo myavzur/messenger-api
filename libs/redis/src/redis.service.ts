@@ -16,9 +16,9 @@ export class RedisService {
 	logger: Logger = new Logger(RedisService.name);
 
 	// * Chat POOL
-	async setChatUser(chatUser: ConnectedChatUser) {
-		const key = CHAT_PREFIX + chatUser.userId;
-		await this.set(key, chatUser, 0);
+	async setChatUser(chatParticipant: ConnectedChatUser) {
+		const key = CHAT_PREFIX + chatParticipant.userId;
+		await this.set(key, chatParticipant, 0);
 	}
 
 	async getChatUser(userId: User["id"]): Promise<ConnectedChatUser | undefined> {

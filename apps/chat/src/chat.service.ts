@@ -5,14 +5,14 @@ import { firstValueFrom } from "rxjs";
 import { Repository } from "typeorm";
 
 import { RedisService } from "@app/redis";
-import { Chat, Message, User } from "@app/shared/entities";
+import { Chat, ChatType, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
 import { ChatRepository } from "@app/shared/repositories";
 
 import {
 	CreateGroupChatDto,
 	CreateMessageDto,
-	GetAnyChatDto,
+	GetChatDto,
 	GetUserChatsDto,
 	PaginatedChatsDto,
 	PaginatedMessagesDto
@@ -37,7 +37,7 @@ export class ChatService {
 
 	// * Chats
 	async getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
-		return await this.chatRepository.getUserChats(payload.userId);
+		return await this.chatRepository.getUserChats(payload);
 	}
 
 	async getLocalChats(userId: User["id"]) {
@@ -45,19 +45,14 @@ export class ChatService {
 	}
 
 	/** Get base information about chat: id, updated_at, title, users */
-	async getChat(payload: GetAnyChatDto): Promise<Chat | null> {
-		const chat = await this.chatRepository.findOne({
-			where: {
-				id: payload.chatId
-			},
-			relations: { users: true }
-		});
+	async getChat(payload: GetChatDto): Promise<Chat | null> {
+		const chat = await this.chatRepository.getChat(payload);
 
-		if (!chat) return null;
+		console.log(chat);
 
-		const isParticipant = Boolean(
-			chat.users.find(user => user.id === payload.userId)
-		);
+		const isParticipant =
+			chat.type === ChatType.TEMP ||
+			Boolean(chat.users.find(user => user.id === payload.currentUserId));
 
 		// If user isn't a member of requested chat - don't return this chat.
 		if (!isParticipant) return null;

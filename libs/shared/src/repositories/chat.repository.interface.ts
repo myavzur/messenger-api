@@ -1,4 +1,4 @@
-import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetChatDto, GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 
 import { Chat, User } from "../entities";
 
@@ -8,8 +8,8 @@ export interface IUpdateChatUsersParams {
 }
 
 export interface IChatRepository {
-	getUserChats(userId: User["id"]): Promise<PaginatedChatsDto>;
+	getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto>;
+	getChat(params: GetChatDto): Promise<Chat>;
 	getLocalChat(userIds: User["id"][]): Promise<Chat>;
 	getLocalChats(userId: User["id"]): Promise<Chat[]>;
-	getAllChats(params: GetUserChatsDto): Promise<PaginatedChatsDto>;
 }

@@ -1,15 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetChatDto, GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 import { DataSource } from "typeorm";
 
-import { Chat, User } from "../entities";
+import { Chat, ChatType, User } from "../entities";
 import { ChatUser } from "../entities/chat-user.entity";
 import { pagination } from "../helpers";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import { IChatRepository } from "./chat.repository.interface";
 
-const MAX_CHATS_LIMIT_PER_PAGE = 20;
+const MAX_CHATS_PER_PAGE_LIMIT = 20;
 
 /* Useful information about subqueries cna be found in Typeorm docs:
  * https://orkhan.gitbook.io/typeorm/docs/select-query-builder#using-subqueries
@@ -27,9 +27,11 @@ export class ChatRepository
 	logger: Logger = new Logger(ChatRepository.name);
 
 	/** Get all chats in which the user participates. */
-	async getUserChats(userId: User["id"]): Promise<PaginatedChatsDto> {
-		const currentPage = 1;
-		const limit = MAX_CHATS_LIMIT_PER_PAGE;
+	async getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto> {
+		const { page, limit, userId } = params;
+
+		const currentPage = pagination.getPage(page);
+		const currentLimit = pagination.getLimit(limit, MAX_CHATS_PER_PAGE_LIMIT);
 
 		const [chats, totalChats] = await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.last_message", "last_message")
@@ -46,11 +48,11 @@ export class ChatRepository
 				return `chat.id IN ${subQuery}`;
 			})
 			.orderBy("chat.updated_at", "DESC")
-			.skip((currentPage - 1) * limit)
-			.take(limit)
+			.skip((currentPage - 1) * currentLimit)
+			.take(currentLimit)
 			.getManyAndCount();
 
-		const totalPages = Math.ceil(totalChats / limit);
+		const totalPages = Math.ceil(totalChats / currentLimit);
 
 		return {
 			chats,
@@ -58,6 +60,42 @@ export class ChatRepository
 			totalPages,
 			currentPage
 		};
+	}
+
+	async getChat(params: GetChatDto): Promise<Chat> {
+		const { currentUserId, polymorphicId } = params;
+
+		const getChat = async (chatId: Chat["id"]): Promise<Chat> => {
+			return await this.findOne({
+				where: { id: chatId },
+				relations: { users: {  }, last_message: true }
+			});
+		};
+
+		const getTemporaryChat = async (userIds: User["id"][]): Promise<Chat> => {
+			const users = (await Promise.all(
+				userIds.map(userId =>
+					this.dataSource.getRepository(User).findOneBy({ id: userId })
+				)
+			)) as User[];
+
+			return {
+				users: users,
+				users_count: users.length,
+				type: ChatType.TEMP,
+				id: null,
+				title: null,
+				updated_at: null,
+				messages: null,
+				last_message: null
+			};
+		};
+
+		let chat = await getChat(polymorphicId);
+		if (!chat) chat = await this.getLocalChat([currentUserId, polymorphicId]);
+		if (!chat) chat = await getTemporaryChat([currentUserId, polymorphicId]);
+
+		return chat;
 	}
 
 	async getLocalChats(userId: User["id"]): Promise<Chat[]> {
@@ -83,39 +121,5 @@ export class ChatRepository
 			.andWhere("user.id = :firstUserId", { firstUserId: userIds[0] })
 			.andWhere("user.id = :secondUserId", { secondUserId: userIds[1] })
 			.getOne();
-	}
-
-	/** Find any chats where user consists of. */
-	async getAllChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
-		const limit = pagination.getLimit(payload.limit, MAX_CHATS_LIMIT_PER_PAGE);
-		const page = pagination.getPage(payload.page);
-
-		// Get chat IDs where {userId} is a member.
-		const chatIdsQb = await this.createQueryBuilder("chat")
-			.select("chat.id")
-			.innerJoin("chat.users", "user")
-			.where("user.id = :userId", { userId: payload.userId })
-			.getQuery();
-
-		// TODO: Можно подумать как делать JOIN юзеров только в том случае если чат !is_group.
-		const [chats, totalChats] = await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
-			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("last_message.user", "last_message_user")
-			.where(`chat.id IN (${chatIdsQb})`)
-			.andWhere(`user.id != :userId`, { userId: payload.userId }) // Костыль
-			.orderBy("chat.updated_at", "DESC")
-			.skip((page - 1) * limit)
-			.take(limit)
-			.getManyAndCount();
-
-		const totalPages = Math.ceil(totalChats / limit);
-
-		return {
-			chats,
-			totalItems: totalChats,
-			totalPages,
-			currentPage: page
-		};
 	}
 }

@@ -12,6 +12,15 @@ import { ChatUser } from "./chat-user.entity";
 import { Message } from "./message.entity";
 import { User } from "./user.entity";
 
+export enum ChatType {
+	/** Такие чаты не хранятся в базе данных!
+	 * Существуют лишь при открытии чата с пользователем,
+	 * при условии, что физического чата ещё нет. */
+	TEMP = "temp",
+	LOCAL = "local",
+	GROUP = "group"
+}
+
 @Entity("chats")
 export class Chat {
 	@PrimaryGeneratedColumn("uuid")
@@ -20,11 +29,15 @@ export class Chat {
 	@UpdateDateColumn()
 	updated_at: string; // ISO date string
 
+	@Column({
+		type: "enum",
+		enum: ChatType,
+		default: ChatType.LOCAL
+	})
+	type: ChatType;
+
 	@Column("varchar", { length: 128, nullable: true })
 	title: string;
-
-	@Column("boolean", { default: false })
-	is_group: boolean;
 
 	@Column("smallint", { default: 2 })
 	users_count: number;

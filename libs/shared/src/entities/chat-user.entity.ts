@@ -10,9 +10,9 @@ import { Chat } from "./chat.entity";
 import { User } from "./user.entity";
 
 export enum ChatUserRole {
-	PARTICIPANT,
-	ADMIN,
-	OWNER
+	PARTICIPANT = "participant",
+	ADMIN = "admin",
+	OWNER = "owner"
 }
 
 @Entity("chats_has_users")

@@ -5,9 +5,7 @@ import * as path from "path";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
 
-import { PresenceController } from "./presence.controller";
 import { PresenceGateway } from "./presence.gateway";
-import { PresenceService } from "./presence.service";
 
 // Current Working Direction (node process) = messenger/api
 const CWD = process.cwd();
@@ -30,7 +28,6 @@ const CWD = process.cwd();
 
 		RedisModule
 	],
-	controllers: [PresenceController],
-	providers: [PresenceService, PresenceGateway]
+	providers: [PresenceGateway]
 })
 export class PresenceModule {}

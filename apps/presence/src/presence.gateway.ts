@@ -10,12 +10,11 @@ import {
 import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
+import { RedisService } from "@app/redis";
+import { UserStatus } from "@app/redis/interfaces";
 import { Chat, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken, UserSocket } from "@app/shared/interfaces";
-
-import { ConnectedUserStatus } from "./interfaces";
-import { PresenceService } from "./presence.service";
 
 @WebSocketGateway({ cors: true })
 export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -24,65 +23,51 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		private readonly authService: ClientProxy,
 		@Inject("CHAT_SERVICE")
 		private readonly chatService: ClientProxy,
-		private readonly presenceService: PresenceService
+		private readonly cache: RedisService
 	) {}
 
 	@WebSocketServer()
 	server: Server;
 	logger: Logger = new Logger(PresenceGateway.name);
 
-	async onModuleInit() {
-		await this.presenceService.clearConnectedUsers();
-	}
-
 	// * Connections
 	async handleConnection(socket: UserSocket) {
-		this.logger.debug("[handleConnection]: Connection handled.");
-
 		const token = extractTokenFromHeaders(socket.handshake.headers);
-
-		if (!token) {
-			return socket.disconnect(true);
-		}
+		if (!token) return socket.disconnect(true);
 
 		const decodedToken$ = this.authService.send<UserAccessToken>(
 			{ cmd: "decode-access-token" },
 			{ token }
 		);
+
 		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
 			this.logger.error(e)
 		);
-
-		if (!decodedToken || !decodedToken.user) {
-			return socket.disconnect(true);
-		}
+		if (!decodedToken || !decodedToken.user) return socket.disconnect(true);
 
 		socket.data.user = decodedToken.user;
 
-		await this.presenceService.setConnectedUser({
+		await this.cache.setPresenceUser({
 			socketId: socket.id,
 			userId: decodedToken.user.id,
-			status: ConnectedUserStatus.ONLINE
+			status: UserStatus.ONLINE
 		});
 
-		// await this.emitStatus(decodedToken.user.id, ConnectedUserStatus.ONLINE);
+		// await this.emitStatus(decodedToken.user.id, UserStatus.ONLINE);
 	}
 
 	async handleDisconnect(socket: UserSocket) {
-		this.logger.debug("[handleDisconnect]: Disconnect handled.");
 		const user = socket.data?.user;
 
 		if (user) {
-			await this.presenceService.deleteConnectedUserById(user.id);
-			// await this.emitStatus(user.id, ConnectedUserStatus.INVISIBLE);
+			await this.cache.deletePresenceUser(user.id);
+			// await this.emitStatus(user.id, UserStatus.INVISIBLE);
 		}
 	}
 
-	// * Statuses
 	/** Emits `new-status` for all user's local chats. */
-	private async emitStatus(userId: User["id"], status: ConnectedUserStatus) {
+	private async emitStatus(userId: User["id"], status: UserStatus) {
 		this.logger.debug("[emitStatus]: Emitting...");
-		this.logger.log(userId);
 
 		const localChats$ = this.chatService.send<Chat[]>(
 			{ cmd: "get-local-chats" },
@@ -94,12 +79,8 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 		if (localChats) {
 			localChats.forEach(async chat => {
-				const connectedUser = await this.presenceService.getConnectedUserById(
-					chat.users[0].id
-				);
+				const connectedUser = await this.cache.getPresenceUser(chat.users[0].id);
 				if (!connectedUser) return;
-
-				console.log(connectedUser);
 
 				this.server.to(connectedUser.socketId).emit("new-status-in-local-chat", {
 					chatId: chat.id,
@@ -112,13 +93,8 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 	// * Client events
 	@SubscribeMessage("change-status")
-	async changeStatus(socket: UserSocket, status: ConnectedUserStatus) {
+	async changeStatus(socket: UserSocket, status: UserStatus) {
 		const user = socket.data?.user;
-
-		if (!user) {
-			this.logger.error("[changeStatus]: Socket has no user data.");
-		}
-
 		await this.emitStatus(user.id, status);
 	}
 

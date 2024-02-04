@@ -18,7 +18,6 @@ import {
 	PaginatedMessagesDto
 } from "./dto";
 import { GetChatHistoryDto } from "./dto";
-import { ConnectedUser } from "./interfaces";
 
 const MAX_CHAT_HISTORY_LIMIT_PER_PAGE = 70;
 
@@ -35,23 +34,6 @@ export class ChatService {
 	) {}
 
 	logger: Logger = new Logger(ChatService.name);
-
-	// * Cache
-	async setConnectedUser(connectedUser: ConnectedUser) {
-		await this.cache.set(`chat-user:${connectedUser.userId}`, connectedUser, 0);
-	}
-
-	async getConnectedUserById(
-		userId: User["id"]
-	): Promise<ConnectedUser | undefined> {
-		return (await this.cache.get(`chat-user:${userId}`)) as
-			| ConnectedUser
-			| undefined;
-	}
-
-	async deleteConnectedUserById(userId: User["id"]) {
-		await this.cache.delete(`chat-user:${userId}`);
-	}
 
 	// * Chats
 	async getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {

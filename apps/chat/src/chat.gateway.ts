@@ -39,10 +39,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	server: Server;
 	logger: Logger = new Logger(ChatGateway.name);
 
-	async onModuleInit() {
-		await this.cache.reset();
-	}
-
 	// * Connection handlers
 	async handleConnection(socket: UserSocket) {
 		const token = extractTokenFromHeaders(socket.handshake.headers);
@@ -53,24 +49,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			{ token }
 		);
 
-		const tokenPayload = await firstValueFrom(decodedToken$).catch(e =>
+		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
 			this.logger.error(e)
 		);
-		if (!tokenPayload || !tokenPayload.user) return socket.disconnect(true);
+		if (!decodedToken || !decodedToken.user) return socket.disconnect(true);
 
-		socket.data.user = tokenPayload.user;
+		socket.data.user = decodedToken.user;
 
-		await this.chatService.setConnectedUser({
+		await this.cache.setChatUser({
 			socketId: socket.id,
-			userId: tokenPayload.user.id
+			userId: decodedToken.user.id
 		});
 	}
 
 	async handleDisconnect(socket: UserSocket) {
-		this.logger.debug("[handleDisconnect]: Disconnect handled.");
-
 		if (socket.data?.user) {
-			await this.chatService.deleteConnectedUserById(socket.data.user.id);
+			await this.cache.deleteChatUser(socket.data.user.id);
 		}
 	}
 
@@ -138,7 +132,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		);
 
 		chat.users.forEach(async user => {
-			const connectedUser = await this.chatService.getConnectedUserById(user.id);
+			const connectedUser = await this.cache.getChatUser(user.id);
 			if (!connectedUser) return;
 
 			this.server

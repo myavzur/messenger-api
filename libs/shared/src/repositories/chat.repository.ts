@@ -39,12 +39,22 @@ export class ChatRepository
 	async createChat(params: ICreateChatParams): Promise<Chat> {
 		const { creatorId, participantsIds, title, type } = params;
 
-		const owner = new ChatParticipant();
-		owner.role = ChatParticipantRole.OWNER;
-		owner.user.id = creatorId;
+		const chat = await this.save({ title, type });
 
-		const chat = await this.save({ title, type, participants: [owner] });
-		return await this.createParticipants({ chatId: chat.id, participantsIds });
+		await this.createParticipants({
+			chatId: chat.id,
+			creatorId,
+			participantsIds
+		});
+
+		return await this.findOne({
+			where: { id: chat.id },
+			relations: {
+				last_message: {
+					user: true
+				}
+			}
+		});
 	}
 
 	async deleteChat(params: IDeleteChatParams): Promise<void> {
@@ -55,7 +65,7 @@ export class ChatRepository
 	async createParticipants(
 		params: IUpdateChatParticipantsParams
 	): Promise<Chat | null> {
-		const { chatId, participantsIds } = params;
+		const { chatId, creatorId, participantsIds } = params;
 
 		const chat = await this.findOne({
 			where: { id: chatId },
@@ -63,17 +73,28 @@ export class ChatRepository
 		});
 		if (!chat) return null;
 
-		const participants = participantsIds.map(participantId => {
-			const participant = new ChatParticipant();
-			participant.role = ChatParticipantRole.PARTICIPANT;
-			participant.user.id = participantId;
-			return participant;
-		});
+		const creatorParticipant = creatorId && new ChatParticipant();
+		if (creatorParticipant) {
+			creatorParticipant.role = ChatParticipantRole.OWNER;
+			creatorParticipant.user = { id: creatorId } as User;
+			creatorParticipant.chat = { id: chat.id } as Chat;
+			await this.dataSource.manager.save(creatorParticipant);
+		}
 
-		chat.participants = [...chat.participants, ...participants];
+		const participants = (await Promise.all(
+			participantsIds.map(participantId => {
+				const participant = new ChatParticipant();
+				participant.role = ChatParticipantRole.PARTICIPANT;
+				participant.user = { id: participantId } as User;
+				participant.chat = { id: chat.id } as Chat;
+				return this.dataSource.manager.save(participant);
+			})
+		)) as ChatParticipant[];
+
+		chat.participants = [...chat.participants, ...participants, creatorParticipant];
 		chat.participants_count = chat.participants.length;
 
-		return await this.save(chat);
+		await this.manager.save(chat);
 	}
 
 	async deleteParticipants(params: IUpdateChatParticipantsParams): Promise<void> {
@@ -163,13 +184,17 @@ export class ChatRepository
 						id: "joker",
 						role: ChatParticipantRole.OWNER,
 						user: fromUser,
-						chat: null
+						chat: null,
+						chat_id: "whatever?",
+						user_id: "fuck u"
 					},
 					{
 						id: "listener",
 						role: ChatParticipantRole.PARTICIPANT,
 						user: toUser,
-						chat: null
+						chat: null,
+						chat_id: "whatever?",
+						user_id: "fuck u"
 					}
 				],
 				participants_count: 2,
@@ -190,27 +215,38 @@ export class ChatRepository
 	}
 
 	async getLocalChats(userId: User["id"]): Promise<Chat[]> {
-		const chatsIdsQuery = await this.createQueryBuilder("chatsIdsQuery")
-			.select("chatsIdsQuery.id")
-			.innerJoin("chatsIdsQuery.users", "user")
-			.where("user.id = :userId", { userId: userId })
+		const chatsIdsQuery = await this.createQueryBuilder("chat")
+			.select("chat.id")
+			.innerJoin("chat.participants", "participant")
+			.where("participant.user_id = :userId", { userId: userId })
 			.andWhere("type = :chatType", { chatType: ChatType.LOCAL })
 			.getQuery();
 
 		return await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.users", "user")
+			.leftJoinAndSelect("chat.participants", "participant")
 			.where(`chat.id IN (${chatsIdsQuery})`)
-			.andWhere("user.id != :userId", { userId: userId })
+			// .andWhere("participant.id != :userId", { userId: userId })
 			.getMany();
 	}
 
+	// TODO: MAKE IT GREAT AGAIN!
 	async getLocalChat(userIds: User["id"][]): Promise<Chat> {
 		return await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("chat.users", "user")
-			.where("chat.type = :chatType", { chatType: ChatType.LOCAL })
-			.andWhere("user.id = :firstUserId", { firstUserId: userIds[0] })
-			.andWhere("user.id = :secondUserId", { secondUserId: userIds[1] })
+			.leftJoinAndSelect("chat.participants", "participant")
+			.where(qb => {
+				const subQuery = qb
+					.subQuery()
+					.select("participant.chat_id")
+					.from(ChatParticipant, "participant")
+					.where("participant.user_id = :firstUserId", { firstUserId: userIds[0] })
+					.andWhere("participant.user_id = :secondUserId", {
+						secondUserId: userIds[1]
+					})
+					.getQuery();
+				return `chat.id IN ${subQuery}`;
+			})
+			.andWhere("chat.type = :chatType", { chatType: ChatType.LOCAL })
 			.getOne();
 	}
 }

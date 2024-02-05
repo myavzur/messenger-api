@@ -15,6 +15,7 @@ export interface IDeleteChatParams {
 
 export interface IUpdateChatParticipantsParams {
 	chatId: Chat["id"];
+	creatorId?: User["id"];
 	participantsIds: User["id"][];
 }
 

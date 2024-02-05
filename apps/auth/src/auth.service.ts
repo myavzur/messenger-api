@@ -1,6 +1,7 @@
 import {
 	BadRequestException,
 	Injectable,
+	Logger,
 	UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -21,7 +22,8 @@ export class AuthService {
 		private readonly jwtService: JwtService
 	) {}
 
-	// * Users
+	logger: Logger = new Logger(AuthService.name);
+
 	async getUsers() {
 		return await this.userRepository.findAll();
 	}
@@ -48,7 +50,10 @@ export class AuthService {
 			throw new BadRequestException("Passwords didn't match.");
 		}
 
-		const oldUser = await this.userRepository.getUserByEmail(payload.email);
+		const oldUser = await this.userRepository.getUserByEmailOrAccountName({
+			email: payload.email,
+			accountName: payload.account_name
+		});
 
 		if (oldUser) {
 			throw new BadRequestException("An account with that email already exists.");
@@ -70,7 +75,11 @@ export class AuthService {
 	}
 
 	async login(payload: LoginDto): Promise<{ user: User; access_token: string }> {
-		const user = await this.userRepository.getUserByEmail(payload.email);
+		const user = await this.userRepository.getUserByEmailOrAccountName({
+			email: payload.email
+		});
+
+		this.logger.debug(JSON.stringify(user));
 
 		if (!user) {
 			throw new BadRequestException();

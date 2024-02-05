@@ -25,9 +25,6 @@ export class User {
 	@Column("varchar", { length: 30, unique: true })
 	account_name: string;
 
-	@Column("varchar", { length: 50, unique: true })
-	email: string;
-
 	@Column({
 		type: "enum",
 		enum: UserRole,
@@ -37,6 +34,9 @@ export class User {
 
 	@Column("varchar", { length: 120, nullable: true })
 	avatar_url: string;
+
+	@Column("varchar", { length: 50, unique: true, select: false })
+	email: string;
 
 	@Column("varchar", { length: 255, select: false })
 	password: string;

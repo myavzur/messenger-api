@@ -23,6 +23,7 @@ export class MessageRepository
 
 	async createMessage(params: ICreateMessageParams): Promise<Message> {
 		const message = await this.save({
+			reply_for: { id: params.replyForId },
 			user: { id: params.creatorId },
 			text: params.text,
 			chat: params.chat
@@ -30,7 +31,12 @@ export class MessageRepository
 
 		return await this.findOne({
 			where: { id: message.id },
-			relations: { user: true }
+			relations: {
+				reply_for: {
+					user: true
+				},
+				user: true
+			}
 		});
 	}
 

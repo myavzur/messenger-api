@@ -1,4 +1,4 @@
-import { Inject, Logger } from "@nestjs/common";
+import { Inject, Logger, UseGuards } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import {
 	OnGatewayConnection,
@@ -79,7 +79,11 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 		if (localChats) {
 			localChats.forEach(async chat => {
-				const connectedUser = await this.cache.getPresenceUser(chat.users[0].id);
+				const withUserId = chat.participants.find(
+					participant => participant.id !== userId
+				).id;
+
+				const connectedUser = await this.cache.getPresenceUser(withUserId);
 				if (!connectedUser) return;
 
 				this.server.to(connectedUser.socketId).emit("new-status-in-local-chat", {

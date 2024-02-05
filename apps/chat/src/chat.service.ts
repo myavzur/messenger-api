@@ -88,6 +88,9 @@ export class ChatService {
 				created_at: "DESC"
 			},
 			relations: {
+				reply_for: {
+					user: true
+				},
 				user: true
 			}
 		});

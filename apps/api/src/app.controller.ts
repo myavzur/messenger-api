@@ -82,12 +82,12 @@ export class AppController {
 		@Req() request: UserRequest,
 		@Body(new ValidationPipe()) dto: CreateGroupChatDto
 	) {
-		// Add current user id to chat members.
-		dto.userIds.push(request.user.id);
-
 		return await this.chatService.send<Chat, CreateGroupChatDto>(
 			{ cmd: "create-group-chat" },
-			dto
+			{
+				...dto,
+				creatorId: request.user.id
+			}
 		);
 	}
 }

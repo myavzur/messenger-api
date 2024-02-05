@@ -3,6 +3,7 @@ import { Chat, Message, User } from "../entities";
 import { IBaseRepository } from "./base.repository.interface";
 
 export interface ICreateMessageParams {
+	replyForId?: Message["id"];
 	creatorId: User["id"];
 	text: Message["text"];
 	chat: Chat;

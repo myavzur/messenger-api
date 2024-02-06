@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { DataSource, In } from "typeorm";
+import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { Message } from "../entities";
 
@@ -22,12 +23,17 @@ export class MessageRepository
 	logger: Logger = new Logger(MessageRepository.name);
 
 	async createMessage(params: ICreateMessageParams): Promise<Message> {
-		const message = await this.save({
-			reply_for: { id: params.replyForId },
+		const messageConfig: QueryDeepPartialEntity<Message> = {
 			user: { id: params.creatorId },
-			text: params.text,
-			chat: params.chat
-		});
+			chat: params.chat,
+			text: params.text
+		};
+
+		if (params.replyForId) {
+			messageConfig.reply_for = { id: params.replyForId };
+		}
+
+		const message = (await this.insert(messageConfig)).identifiers[0];
 
 		return await this.findOne({
 			where: { id: message.id },

@@ -1,6 +1,8 @@
 export * from "./create-group-chat.dto";
 export * from "./create-local-chat.dto";
+
 export * from "./create-message.dto";
+export * from "./delete-messages.dto";
 
 export * from "./paginated-chats.dto";
 export * from "./paginated-messages.dto";

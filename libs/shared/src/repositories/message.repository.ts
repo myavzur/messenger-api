@@ -46,7 +46,7 @@ export class MessageRepository
 		});
 	}
 
-	async deleteMessages(params: IDeleteMessagesParams): Promise<void> {
+	async deleteMessages(params: IDeleteMessagesParams): Promise<Message[]> {
 		const messages = await this.find({
 			where: {
 				user: { id: params.removerId },
@@ -54,6 +54,6 @@ export class MessageRepository
 			}
 		});
 
-		await this.remove(messages);
+		return await this.remove(messages);
 	}
 }

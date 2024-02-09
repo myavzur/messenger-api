@@ -1,7 +1,8 @@
-import { Chat, User } from "@app/shared/entities";
+import { Chat, Message, User } from "@app/shared/entities";
 
 export class CreateMessageDto {
 	userId?: User["id"];
 	chatId?: Chat["id"];
 	text: string;
+	replyForId: Message["id"];
 }

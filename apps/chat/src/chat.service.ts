@@ -133,7 +133,8 @@ export class ChatService {
 		const message = await this.messageRepository.createMessage({
 			chat,
 			creatorId,
-			text: payload.text
+			text: payload.text,
+			replyForId: payload.replyForId
 		});
 
 		await this.chatRepository.save({ ...chat, last_message: message });

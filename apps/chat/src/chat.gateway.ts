@@ -19,6 +19,7 @@ import { UserSocket } from "@app/shared/interfaces";
 import { ChatService } from "./chat.service";
 import {
 	CreateMessageDto,
+	DeleteMessagesDto,
 	GetChatDto,
 	GetChatHistoryDto,
 	GetUserChatsDto
@@ -102,12 +103,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("send-message")
-	async handleSendMessage(socket: UserSocket, newMessage: CreateMessageDto) {
-		if (!newMessage) return null;
+	async handleSendMessage(socket: UserSocket, payload: CreateMessageDto) {
+		if (!payload) return null;
 
 		const { chat, message, hasBeenCreated } = await this.chatService.createMessage(
 			socket.data.user.id,
-			newMessage
+			payload
 		);
 
 		chat.participants.forEach(async chatParticipant => {
@@ -122,5 +123,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 				this.server.to(connectedUser.socketId).emit("chat-created", chat);
 			}
 		});
+	}
+
+	@SubscribeMessage("change-message")
+	async handleChangeMessage(socket: UserSocket, payload: any) {
+		return;
+	}
+
+	@SubscribeMessage("pin-message")
+	async handlePinMessage(socket: UserSocket, payload: any) {
+		return;
+	}
+
+	@SubscribeMessage("delete-messages")
+	async handleDeleteMessage(socket: UserSocket, payload: DeleteMessagesDto) {
+		const deletedMessages = await this.chatService.deleteMessages({
+			removerId: socket.data.user.id,
+			messageIds: payload.messageIds
+		});
+
+		console.log(deletedMessages);
 	}
 }

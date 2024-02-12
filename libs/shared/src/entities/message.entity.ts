@@ -23,7 +23,9 @@ export class Message {
 	text: string;
 
 	// * Relations
-	@OneToOne(() => Message, message => message.reply_for)
+	@OneToOne(() => Message, message => message.reply_for, {
+		onDelete: "CASCADE"
+	})
 	@JoinColumn({
 		name: "reply_for_id",
 		referencedColumnName: "id",

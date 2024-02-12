@@ -11,6 +11,7 @@ import {
 	CreateGroupChatDto,
 	CreateLocalChatDto,
 	CreateMessageDto,
+	DeleteMessagesDto,
 	GetChatDto,
 	GetUserChatsDto,
 	PaginatedChatsDto,
@@ -150,6 +151,13 @@ export class ChatService {
 		});
 
 		return { message, chat, hasBeenCreated };
+	}
+
+	async deleteMessages(payload: DeleteMessagesDto) {
+		return await this.messageRepository.deleteMessages({
+			messageIds: payload.messageIds,
+			removerId: payload.removerId
+		});
 	}
 
 	async createGroupChat(payload: CreateGroupChatDto) {

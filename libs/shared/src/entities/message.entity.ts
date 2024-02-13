@@ -1,4 +1,7 @@
 import {
+	AfterInsert,
+	BeforeInsert,
+	BeforeUpdate,
 	Column,
 	CreateDateColumn,
 	Entity,
@@ -24,7 +27,7 @@ export class Message {
 
 	// * Relations
 	@OneToOne(() => Message, message => message.reply_for, {
-		onDelete: "CASCADE"
+		onDelete: "SET NULL"
 	})
 	@JoinColumn({
 		name: "reply_for_id",

@@ -3,7 +3,7 @@ import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
 import { firstValueFrom } from "rxjs";
 
-import { Chat, ChatType, User } from "@app/shared/entities";
+import { Chat, ChatType, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
 import { ChatRepository, MessageRepository } from "@app/shared/repositories";
 
@@ -34,13 +34,24 @@ export class ChatService {
 
 	logger: Logger = new Logger(ChatService.name);
 
-	// * Chats
+	/** @returns Chat[] where `chat.type` is (Local, Group, etc.) and userId is a participant */
 	async getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
 		return await this.chatRepository.getUserChats(payload);
 	}
 
-	async getLocalChats(userId: User["id"]) {
-		return await this.chatRepository.getLocalChats(userId);
+	/** @returns Chat[] where `chat.type` is local and `userId` is a participant */
+	async getUserLocalChats(userId: User["id"]) {
+		return await this.chatRepository.getUserLocalChats(userId);
+	}
+
+	/** @returns Chat with `participants` relation */
+	async getChatForBroadcast(chatId: Chat["id"]) {
+		return await this.chatRepository.findOne({
+			where: { id: chatId },
+			relations: {
+				participants: true
+			}
+		});
 	}
 
 	/** Get base information about chat: id, updated_at, title, users */
@@ -143,9 +154,7 @@ export class ChatService {
 		chat = await this.chatRepository.findOne({
 			where: { id: chat.id },
 			relations: {
-				participants: {
-					user: true
-				},
+				participants: true,
 				last_message: hasBeenCreated
 			}
 		});
@@ -153,10 +162,37 @@ export class ChatService {
 		return { message, chat, hasBeenCreated };
 	}
 
-	async deleteMessages(payload: DeleteMessagesDto) {
+	async deleteMessages(payload: DeleteMessagesDto): Promise<Message["id"][]> {
+		const chat = await this.chatRepository.findOne({
+			where: {
+				id: payload.chatId,
+				participants: {
+					user: { id: payload.removerId }
+				}
+			},
+			relations: {
+				last_message: true,
+				participants: true
+			}
+		});
+
+		const removerChatRole = chat.participants[0].role;
+		if (!removerChatRole) {
+			this.logger.error(
+				`[deleteMessages]: Chat role not found! Is something went wrong?
+				Participants length: ${chat.participants.length};
+				Participants[0]: ${chat.participants[0]};
+				`
+			);
+			return [];
+		}
+
 		return await this.messageRepository.deleteMessages({
+			removerId: payload.removerId,
+			removerChatRole: chat.participants[0].role,
 			messageIds: payload.messageIds,
-			removerId: payload.removerId
+			chatId: payload.chatId,
+			chatType: chat.type
 		});
 	}
 

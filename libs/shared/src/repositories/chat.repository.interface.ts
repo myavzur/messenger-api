@@ -29,5 +29,5 @@ export interface IChatRepository {
 	getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto>;
 	getChat(params: GetChatDto): Promise<Chat>;
 	getLocalChat(userIds: User["id"][]): Promise<Chat>;
-	getLocalChats(userId: User["id"]): Promise<Chat[]>;
+	getUserLocalChats(userId: User["id"]): Promise<Chat[]>;
 }

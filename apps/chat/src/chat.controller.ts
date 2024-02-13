@@ -16,52 +16,12 @@ export class ChatController {
 	) {}
 
 	@MessagePattern({ cmd: "get-local-chats" })
-	async getLocalChats(
+	async getUserLocalChats(
 		@Ctx() context: RmqContext,
 		@Payload() payload: GetUserChatsDto
 	): Promise<Chat[]> {
 		this.rabbitmqService.acknowledgeMessage(context);
 
-		return await this.chatService.getLocalChats(payload.userId);
-	}
-
-	@MessagePattern({ cmd: "get-chats" })
-	async getAllChat(
-		@Ctx() context: RmqContext,
-		@Payload() payload: GetUserChatsDto
-	): Promise<PaginatedChatsDto> {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.chatService.getUserChats(payload);
-	}
-
-	@MessagePattern({ cmd: "get-chat" })
-	async getChat(
-		@Ctx() context: RmqContext,
-		@Payload() payload: GetChatDto
-	): Promise<Chat> {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.chatService.getChat(payload);
-	}
-
-	@MessagePattern({ cmd: "create-group-chat" })
-	async createGroupChat(
-		@Ctx() context: RmqContext,
-		@Payload() payload: CreateGroupChatDto
-	) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.chatService.createGroupChat(payload);
-	}
-
-	@MessagePattern({ cmd: "create-message" })
-	async createMessage(
-		@Ctx() context: RmqContext,
-		@Payload() payload: { userId: User["id"]; message: CreateMessageDto }
-	) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.chatService.createMessage(payload.userId, payload.message);
+		return await this.chatService.getUserLocalChats(payload.userId);
 	}
 }

@@ -19,6 +19,36 @@ import {
 	IUpdateChatParticipantsParams
 } from "./chat.repository.interface";
 
+const getTemporaryChatData = (fromUser: User, toUser: User) => {
+	return {
+		participants: [
+			{
+				id: "joker",
+				role: ChatParticipantRole.OWNER,
+				user_id: fromUser.id,
+				user: fromUser,
+				chat_id: null,
+				chat: null
+			},
+			{
+				id: "listener",
+				role: ChatParticipantRole.PARTICIPANT,
+				user_id: toUser.id,
+				user: toUser,
+				chat_id: null,
+				chat: null
+			}
+		],
+		participants_count: 2,
+		type: ChatType.TEMP,
+		id: null,
+		title: null,
+		updated_at: null,
+		messages: null,
+		last_message: null
+	};
+};
+
 const MAX_CHATS_PER_PAGE_LIMIT = 20;
 
 /* Useful information about subqueries can be found in Typeorm docs:
@@ -39,7 +69,7 @@ export class ChatRepository
 	async createChat(params: ICreateChatParams): Promise<Chat> {
 		const { creatorId, participantsIds, title, type } = params;
 
-		const chat = await this.save({ title, type });
+		const chat = await this.save({ title: title.trim(), type });
 
 		await this.createParticipants({
 			chatId: chat.id,
@@ -152,16 +182,22 @@ export class ChatRepository
 		};
 	}
 
+	/** Returns chat by `polymorphicId`.
+	 * @param params.currentUserId - User.id of requester
+	 * @param params.polymorphicId - User.id or Chat.id
+	 * @returns Chat of any `type` where `currentUserId` is a participant.
+	 * - If `polymorphicId` is actual Chat.id, then trying to get existing chat by `polymorphicId`.
+	 * - Else if `polymorphicId` is some User.id, then trying to get local chat by `polymorphicId`,
+	 * where `currentUserId` is a participant.
+	 * - Overwise - returns temporary chat with data of opposite user.  */
 	async getChat(params: GetChatDto): Promise<Chat> {
 		const { currentUserId, polymorphicId } = params;
 
-		const getChat = async (chatId: Chat["id"]): Promise<Chat> => {
+		const getExistingChat = async (chatId: Chat["id"]): Promise<Chat> => {
 			return await this.findOne({
 				where: { id: chatId },
 				relations: {
-					participants: {
-						user: true
-					},
+					participants: true,
 					last_message: true
 				}
 			});
@@ -178,43 +214,17 @@ export class ChatRepository
 				.getRepository(User)
 				.findOneBy({ id: toUserId });
 
-			return {
-				participants: [
-					{
-						id: "joker",
-						role: ChatParticipantRole.OWNER,
-						user: fromUser,
-						chat: null,
-						chat_id: "whatever?",
-						user_id: "fuck u"
-					},
-					{
-						id: "listener",
-						role: ChatParticipantRole.PARTICIPANT,
-						user: toUser,
-						chat: null,
-						chat_id: "whatever?",
-						user_id: "fuck u"
-					}
-				],
-				participants_count: 2,
-				type: ChatType.TEMP,
-				id: null,
-				title: null,
-				updated_at: null,
-				messages: null,
-				last_message: null
-			};
+			return getTemporaryChatData(fromUser, toUser);
 		};
 
-		let chat = await getChat(polymorphicId);
+		let chat = await getExistingChat(polymorphicId);
 		if (!chat) chat = await this.getLocalChat([currentUserId, polymorphicId]);
 		if (!chat) chat = await getTemporaryChat(currentUserId, polymorphicId);
 
 		return chat;
 	}
 
-	async getLocalChats(userId: User["id"]): Promise<Chat[]> {
+	async getUserLocalChats(userId: User["id"]): Promise<Chat[]> {
 		const chatsIdsQuery = await this.createQueryBuilder("chat")
 			.select("chat.id")
 			.innerJoin("chat.participants", "participant")
@@ -225,7 +235,6 @@ export class ChatRepository
 		return await this.createQueryBuilder("chat")
 			.leftJoinAndSelect("chat.participants", "participant")
 			.where(`chat.id IN (${chatsIdsQuery})`)
-			// .andWhere("participant.id != :userId", { userId: userId })
 			.getMany();
 	}
 

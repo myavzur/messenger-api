@@ -73,21 +73,4 @@ export class AppController {
 	async login(@Body(new ValidationPipe()) dto: LoginDto) {
 		return this.authService.send<User, LoginDto>({ cmd: "login" }, dto);
 	}
-
-	// Chats
-	@Post("chats/group")
-	@UseGuards(AuthGuard)
-	@UseInterceptors(UserInterceptor)
-	async createGroupChat(
-		@Req() request: UserRequest,
-		@Body(new ValidationPipe()) dto: CreateGroupChatDto
-	) {
-		return await this.chatService.send<Chat, CreateGroupChatDto>(
-			{ cmd: "create-group-chat" },
-			{
-				...dto,
-				creatorId: request.user.id
-			}
-		);
-	}
 }

@@ -18,6 +18,7 @@ import { UserSocket } from "@app/shared/interfaces";
 
 import { ChatService } from "./chat.service";
 import {
+	CreateGroupChatDto,
 	CreateMessageDto,
 	DeleteMessagesDto,
 	GetChatDto,
@@ -67,39 +68,72 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		}
 	}
 
+	// * Helpers
+	/** Emits `event` to for all `Chat.participants` of `Chat` */
+	async broadcastToChat(chatId: Chat["id"], event: string, payload: any) {
+		const chat = await this.chatService.getChatForBroadcast(chatId);
+
+		if (!chat.participants || chat.participants.length === 0) {
+			this.logger.warn(
+				`[broadcastToChat] Chat ID: ${chat.id} has no participants. Is something went wrong?`
+			);
+			return;
+		}
+
+		return await Promise.all(
+			chat.participants.map(async chatParticipant => {
+				const connectedUser = await this.cache.getChatUser(chatParticipant.user.id);
+				if (!connectedUser) return;
+				const data = typeof payload === "function" ? payload(chat) : payload;
+				this.server.to(connectedUser.socketId).emit(event, data);
+			})
+		);
+	}
+
 	// * Client events
 	@SubscribeMessage("get-chats")
 	async handleGetUserChats(
 		socket: UserSocket,
 		payload: Omit<GetUserChatsDto, "userId">
 	) {
-		const chats = await this.chatService.getUserChats({
+		return await this.chatService.getUserChats({
 			userId: socket.data.user.id,
 			limit: payload.limit,
 			page: payload.page
 		});
-
-		socket.emit("chats", chats);
 	}
 
 	@SubscribeMessage("get-chat")
 	async handleGetChat(socket: UserSocket, payload: GetChatDto) {
-		const chat = await this.chatService.getChat({
+		return await this.chatService.getChat({
 			currentUserId: socket.data.user.id,
 			polymorphicId: payload.polymorphicId
 		});
-
-		socket.emit("chat", chat);
 	}
 
 	@SubscribeMessage("get-chat-history")
 	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
 		const history = await this.chatService.getChatHistory(payload);
 
-		socket.emit("chat-history", {
+		return {
 			chat_id: payload.chatId,
 			...history
+		};
+	}
+
+	@SubscribeMessage("create-group-chat")
+	async handleCreateGroupChat(socket: UserSocket, payload: CreateGroupChatDto) {
+		const groupChat = await this.chatService.createGroupChat({
+			creatorId: socket.data.user.id,
+			participantsIds: payload.participantsIds,
+			title: payload.title
 		});
+
+		await this.broadcastToChat(groupChat.id, "new-chat", chat => chat);
+
+		return {
+			chatId: groupChat.id
+		};
 	}
 
 	@SubscribeMessage("send-message")
@@ -111,18 +145,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			payload
 		);
 
-		chat.participants.forEach(async chatParticipant => {
-			const connectedUser = await this.cache.getChatUser(chatParticipant.user.id);
-			if (!connectedUser) return;
+		if (hasBeenCreated) {
+			await this.broadcastToChat(chat.id, "new-chat", chat => chat);
+		}
 
-			this.server
-				.to(connectedUser.socketId)
-				.emit("new-message", { chat_id: chat.id, message });
-
-			if (hasBeenCreated) {
-				this.server.to(connectedUser.socketId).emit("chat-created", chat);
-			}
+		await this.broadcastToChat(chat.id, "new-message", {
+			chat_id: chat.id,
+			message
 		});
+
+		return {
+			chat_id: chat.id,
+			message_id: message.id
+		};
 	}
 
 	@SubscribeMessage("change-message")
@@ -137,11 +172,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("delete-messages")
 	async handleDeleteMessage(socket: UserSocket, payload: DeleteMessagesDto) {
-		const deletedMessages = await this.chatService.deleteMessages({
+		const goneMessageIds = await this.chatService.deleteMessages({
 			removerId: socket.data.user.id,
-			messageIds: payload.messageIds
+			messageIds: payload.messageIds,
+			chatId: payload.chatId
 		});
 
-		console.log(deletedMessages);
+		// No need to emit "gone-messages" event if no messages were deleted.
+		if (goneMessageIds.length > 0) {
+			this.broadcastToChat(payload.chatId, "gone-messages", {
+				chat_id: payload.chatId,
+				message_ids: goneMessageIds
+			});
+		}
 	}
 }

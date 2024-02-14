@@ -7,7 +7,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
-    "lint": "eslint \"{apps,libs}/**/*.ts\" --fix",
+    "lint": "eslint \"{apps,libs}/**/*.ts\"",
+    "fix": "npm run format && npm run lint --fix",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -25,7 +26,8 @@
     "typeorm": "npm run build && npx typeorm -d ./dist/apps/auth/database/data-source.js",
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert"
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^1.0.0",
@@ -73,7 +75,11 @@
     "ts-loader": "^9.2.3",
     "ts-node": "^10.0.0",
     "tsconfig-paths": "4.2.0",
-    "typescript": "^4.7.4"
+    "typescript": "^4.7.4",
+    "husky": "^8.0.0"
+  },
+  "lint-staged": {
+    "{apps,libs}/**/*.ts": ["npm run fix"]
   },
   "jest": {
     "moduleFileExtensions": [

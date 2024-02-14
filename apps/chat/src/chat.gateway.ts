@@ -11,7 +11,7 @@ import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { Chat, ChatType } from "@app/shared/entities";
+import { Chat } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
@@ -112,7 +112,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	@SubscribeMessage("get-chat-history")
-	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
+	async handleGetChatHistory(_socket: UserSocket, payload: GetChatHistoryDto) {
 		const history = await this.chatService.getChatHistory(payload);
 
 		return {
@@ -162,11 +162,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("change-message")
 	async handleChangeMessage(socket: UserSocket, payload: any) {
+		console.log(socket, payload);
 		return;
 	}
 
 	@SubscribeMessage("pin-message")
 	async handlePinMessage(socket: UserSocket, payload: any) {
+		console.log(socket, payload);
 		return;
 	}
 

@@ -11,11 +11,9 @@ import {
 	ValidationPipe
 } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
-import { LoginDto } from "apps/auth/src/dto";
-import { RegisterDto } from "apps/auth/src/dto/register.dto";
-import { CreateGroupChatDto } from "apps/chat/src/dto";
+import { LoginDto, RegisterDto } from "apps/auth/src/dto";
 
-import { Chat, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";

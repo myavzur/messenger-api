@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { DataSource, FindOptionsWhere, ILike } from "typeorm";
+import { DataSource, ILike } from "typeorm";
 
-import { Chat, ChatParticipant, ChatType, User } from "../entities";
+import { ChatType, User } from "../entities";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {

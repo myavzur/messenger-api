@@ -60,16 +60,14 @@ $ npm ci
 ### GUI 💻
 
 - [HTTP:15672](http://localhost:15672) - _`RabbitMQ - Management`_
-- [HTTP:15432](http://localhost:15432) - _`PostgreSQL Admin`_
-  - [x] Disabled. Uncomment line for `postgres_admin` in `docker-compose.yml` to enable.
-  - [] Enabled
 
 ### Protocols of Microservices 🖥
 
-- [HTTP:4000](http://localhost:4000) - _`API Gateway`_
-- [AMQP](#) - _`Authorization`_
-- [WS:5000](#) | [AMQP](#) - _`Presence`_
-- [WS:6000](#) | [AMQP](#) - _`Chat`_
+- [HTTP:3000](http://localhost:3000) - _`API Gateway`_
+- [AMQP](#) - _`Authorization Service`_
+- [WS:4000](#) | [AMQP](#) - _`Presence Service`_
+- [WS:5000](#) | [AMQP](#) - _`Chat Service`_
+- [HTTP:6000](#) | [AMQP](#) - _`Uploads Service`_
 
 ## Test
 

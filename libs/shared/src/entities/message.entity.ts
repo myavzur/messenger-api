@@ -4,10 +4,12 @@ import {
 	Entity,
 	JoinColumn,
 	ManyToOne,
+	OneToMany,
 	OneToOne,
 	PrimaryGeneratedColumn
 } from "typeorm";
 
+import { Attachment } from "./attachment.entity";
 import { Chat } from "./chat.entity";
 import { User } from "./user.entity";
 
@@ -33,8 +35,14 @@ export class Message {
 	})
 	reply_for: Message;
 
+	@OneToMany(() => Attachment, attachment => attachment.message, {
+		eager: true
+	})
+	attachments: Attachment[];
+
 	@ManyToOne(() => User, user => user.messages, {
-		onDelete: "CASCADE"
+		onDelete: "CASCADE",
+		eager: true
 	})
 	@JoinColumn({
 		name: "user_id",

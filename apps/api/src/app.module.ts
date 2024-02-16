@@ -14,7 +14,6 @@ const CWD = process.cwd();
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
-
 		RabbitMQModule.register({
 			service: "AUTH_SERVICE",
 			queue: process.env.RABBITMQ_AUTH_QUEUE

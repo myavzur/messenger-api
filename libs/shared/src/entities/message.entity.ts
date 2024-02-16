@@ -4,7 +4,6 @@ import {
 	Entity,
 	JoinColumn,
 	ManyToOne,
-	OneToMany,
 	OneToOne,
 	PrimaryGeneratedColumn
 } from "typeorm";
@@ -34,11 +33,6 @@ export class Message {
 		foreignKeyConstraintName: "FK_reply_for"
 	})
 	reply_for: Message;
-
-	@OneToMany(() => Attachment, attachment => attachment.message, {
-		eager: true
-	})
-	attachments: Attachment[];
 
 	@ManyToOne(() => User, user => user.messages, {
 		onDelete: "CASCADE",

@@ -21,8 +21,6 @@ const CWD = process.cwd();
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
-		TypeOrmModule.forFeature([User, Chat, ChatParticipant, Message]),
-
 		RedisModule,
 		PostgresModule,
 		RabbitMQModule.register({

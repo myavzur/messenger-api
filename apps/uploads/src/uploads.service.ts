@@ -1,20 +1,86 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { Readable } from "stream";
+import { Repository } from "typeorm";
 
-import { SaveFileResponse, UploadFolders } from "./interfaces";
+import { Attachment, AttachmentTag, User } from "@app/shared/entities";
+
+import { SaveFileResponse } from "./interfaces";
+
+const allowedAttachmentTypes = [
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"video/mp4",
+	"video/x-m4v",
+	"video/quicktime"
+];
+const allowedAvatarTypes = ["image/png", "image/jpeg"];
 
 @Injectable()
 export class UploadsService {
+	constructor(
+		@InjectRepository(Attachment)
+		private readonly attachmentRepository: Repository<Attachment>
+	) {}
 	logger: Logger = new Logger(UploadsService.name);
 
-	async saveFile(
+	async uploadMessageAttachment(
+		creatorId: User["id"],
 		file: Express.Multer.File,
-		folder?: UploadFolders
+		tag: AttachmentTag = AttachmentTag.FILE
+	) {
+		if (!allowedAttachmentTypes.includes(file.mimetype)) {
+			throw new BadRequestException(
+				"Invalid file type. Allowed file types: " + allowedAttachmentTypes.join(", ")
+			);
+		}
+
+		const saveResult = await this.saveFile(file, tag);
+		const insertResult = await this.attachmentRepository.insert({
+			file_name: saveResult.file_name,
+			file_size: saveResult.file_size,
+			file_type: saveResult.file_type,
+			file_url: saveResult.file_url,
+			tag,
+			user: { id: creatorId }
+		});
+		return {
+			attachment_id: insertResult.raw[0].id,
+			attachment_type: insertResult.raw[0].tag
+		};
+	}
+
+	async uploadAvatar(creatorId: User["id"], file: Express.Multer.File) {
+		if (!allowedAvatarTypes.includes(file.mimetype)) {
+			throw new BadRequestException(
+				"Invalid file type. Allowed file types: " + allowedAvatarTypes.join(", ")
+			);
+		}
+
+		const saveResult = await this.saveFile(file, "avatars");
+		const insertResult = await this.attachmentRepository.insert({
+			file_name: saveResult.file_name,
+			file_size: saveResult.file_size,
+			file_type: saveResult.file_type,
+			file_url: saveResult.file_url,
+			tag: AttachmentTag.AVATAR,
+			user: { id: creatorId }
+		});
+		return {
+			attachment_id: insertResult.raw[0].id,
+			attachment_type: insertResult.raw[0].tag
+		};
+	}
+
+	private async saveFile(
+		file: Express.Multer.File,
+		folder: string
 	): Promise<SaveFileResponse> {
-		const outputFolder = folder ? `uploads/${folder}` : "uploads";
+		const outputFolder = `uploads/${folder}`;
 
 		const outputName = await this.generateFileName(file);
 		const outputDir = path.join(__dirname, "..", "public", outputFolder);
@@ -22,11 +88,6 @@ export class UploadsService {
 
 		await this.ensureDir(outputDir);
 		await this.writeFile(outputFile, file.buffer);
-
-		// TODO: Fix paths
-		this.logger.debug(`[saveFile]: File name: ${outputFile}`);
-		this.logger.debug(`[saveFile]: File dir: ${outputFile}`);
-		this.logger.debug(`[saveFile]: File path: ${outputFile}`);
 
 		return {
 			file_name: Buffer.from(file.originalname, "latin1").toString("utf8"),

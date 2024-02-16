@@ -8,27 +8,30 @@ import {
 } from "typeorm";
 
 import { Message } from "./message.entity";
+import { User } from "./user.entity";
 
-export enum AttachmentDisplay {
-	MEDIA = "media",
+export enum AttachmentTag {
 	FILE = "file",
-	VOICE = "voice"
+	MEDIA = "media",
+	VOICE = "voice",
+	CIRCLE = "circle",
+	AVATAR = "avatar"
 }
 
 @Entity("attachments")
 export class Attachment {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryGeneratedColumn("uuid")
+	id: string;
 
 	@CreateDateColumn()
 	created_at: Date;
 
 	@Column({
 		type: "enum",
-		enum: AttachmentDisplay,
-		default: AttachmentDisplay.FILE
+		enum: AttachmentTag,
+		default: AttachmentTag.FILE
 	})
-	display: AttachmentDisplay;
+	tag: AttachmentTag;
 
 	@Column("varchar")
 	file_url: string;
@@ -36,19 +39,21 @@ export class Attachment {
 	@Column("varchar")
 	file_name: string;
 
-	@Column("varchar")
-	file_size: string;
+	@Column("int")
+	file_size: number;
 
 	@Column("varchar")
 	file_type: string; // MimeType
 
-	@ManyToOne(() => Message, message => message.attachments, {
-		onDelete: "CASCADE"
-	})
+	// * Relations
+	user_id: User["id"];
+	message_id: Message["id"];
+
+	@ManyToOne(() => User, () => null, { onDelete: "SET NULL" })
 	@JoinColumn({
-		name: "message_id",
+		name: "user_id",
 		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_attachment_message"
+		foreignKeyConstraintName: "FK_attachment_user"
 	})
-	message: Message;
+	user: User;
 }

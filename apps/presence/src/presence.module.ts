@@ -15,17 +15,14 @@ const CWD = process.cwd();
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
-
 		RabbitMQModule.register({
 			service: "AUTH_SERVICE",
 			queue: process.env.RABBITMQ_AUTH_QUEUE
 		}),
-
 		RabbitMQModule.register({
 			service: "CHAT_SERVICE",
 			queue: process.env.RABBITMQ_CHAT_QUEUE
 		}),
-
 		RedisModule
 	],
 	providers: [PresenceGateway]

@@ -20,7 +20,6 @@ const CWD = process.cwd();
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
-
 		JwtModule.registerAsync({
 			imports: [ConfigModule],
 			inject: [ConfigService],
@@ -31,11 +30,8 @@ const CWD = process.cwd();
 				}
 			})
 		}),
-
 		RabbitMQModule,
-		PostgresModule,
-
-		TypeOrmModule.forFeature([User])
+		PostgresModule
 	],
 	controllers: [AuthController],
 	providers: [AuthService, UserRepository]

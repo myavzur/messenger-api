@@ -28,15 +28,6 @@
         "tsConfigPath": "apps/auth/tsconfig.app.json"
       }
     },
-    "shared": {
-      "type": "library",
-      "root": "libs/shared",
-      "entryFile": "index",
-      "sourceRoot": "libs/shared/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/shared/tsconfig.lib.json"
-      }
-    },
     "presence": {
       "type": "application",
       "root": "apps/presence",
@@ -44,6 +35,24 @@
       "sourceRoot": "apps/presence/src",
       "compilerOptions": {
         "tsConfigPath": "apps/presence/tsconfig.app.json"
+      }
+    },
+    "chat": {
+      "type": "application",
+      "root": "apps/chat",
+      "entryFile": "main",
+      "sourceRoot": "apps/chat/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/chat/tsconfig.app.json"
+      }
+    },
+    "uploads": {
+      "type": "application",
+      "root": "apps/uploads",
+      "entryFile": "main",
+      "sourceRoot": "apps/uploads/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/uploads/tsconfig.app.json"
       }
     },
     "rabbitmq": {
@@ -73,22 +82,13 @@
         "tsConfigPath": "libs/redis/tsconfig.lib.json"
       }
     },
-    "chat": {
-      "type": "application",
-      "root": "apps/chat",
-      "entryFile": "main",
-      "sourceRoot": "apps/chat/src",
+    "shared": {
+      "type": "library",
+      "root": "libs/shared",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/chat/tsconfig.app.json"
-      }
-    },
-    "uploads": {
-      "type": "application",
-      "root": "apps/uploads",
-      "entryFile": "main",
-      "sourceRoot": "apps/uploads/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/uploads/tsconfig.app.json"
+        "tsConfigPath": "libs/shared/tsconfig.lib.json"
       }
     }
   }

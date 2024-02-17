@@ -8,6 +8,7 @@ import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
 	ICreateMessageParams,
 	IDeleteMessagesParams,
+	IGetMessageParams,
 	IMessageRepository
 } from "./message.repository.interface";
 
@@ -22,31 +23,43 @@ export class MessageRepository
 
 	logger: Logger = new Logger(MessageRepository.name);
 
-	/** Simply creates new message.
-	 * @returns message - Message with `reply_for` and `user` relations.
-	 */
-	async createMessage(params: ICreateMessageParams): Promise<Message> {
-		const messageConfig: QueryDeepPartialEntity<Message> = {
-			user: { id: params.creatorId },
-			chat: params.chat,
-			text: params.text.trim()
-		};
-
-		if (params.replyForId) {
-			messageConfig.reply_for = { id: params.replyForId };
-		}
-
-		const message = (await this.insert(messageConfig)).identifiers[0];
-
+	async getMessage(params: IGetMessageParams): Promise<Message> {
 		return await this.findOne({
-			where: { id: message.id },
+			where: {
+				id: params.messageId,
+				chat: {
+					id: params.chatId
+				}
+			},
 			relations: {
 				reply_for: {
 					user: true
-				},
-				user: true
+				}
 			}
 		});
+	}
+
+	/** Simply creates new message.
+	 * @returns message - Message with `reply_for` and `user` relations.
+	 */
+	async createMessage({
+		chatId,
+		creatorId,
+		text,
+		replyForId
+	}: ICreateMessageParams): Promise<Message> {
+		const messageConfig: QueryDeepPartialEntity<Message> = {
+			user: { id: creatorId },
+			chat: { id: chatId },
+			text: text.trim()
+		};
+
+		if (replyForId) {
+			messageConfig.reply_for = { id: replyForId };
+		}
+
+		const messageId = (await this.insert(messageConfig)).identifiers[0].id;
+		return await this.getMessage({ messageId, chatId });
 	}
 
 	/** Deletes MANY messages from ONE chat at time.

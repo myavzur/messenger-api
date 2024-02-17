@@ -7,6 +7,7 @@ import {
 	PrimaryGeneratedColumn
 } from "typeorm";
 
+import { Chat } from "./chat.entity";
 import { Message } from "./message.entity";
 import { User } from "./user.entity";
 
@@ -48,6 +49,7 @@ export class Attachment {
 	// * Relations
 	user_id: User["id"];
 	message_id: Message["id"];
+	chat_id: Chat["id"];
 
 	@ManyToOne(() => User, () => null, { onDelete: "SET NULL" })
 	@JoinColumn({
@@ -56,4 +58,24 @@ export class Attachment {
 		foreignKeyConstraintName: "FK_attachment_user"
 	})
 	user: User;
+
+	@ManyToOne(() => Message, message => message.attachments, {
+		onDelete: "SET NULL"
+	})
+	@JoinColumn({
+		name: "message_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_attachment_message"
+	})
+	message?: Message;
+
+	@ManyToOne(() => Chat, chat => chat.attachments, {
+		onDelete: "SET NULL"
+	})
+	@JoinColumn({
+		name: "chat_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_attachment_chat"
+	})
+	chat?: Chat;
 }

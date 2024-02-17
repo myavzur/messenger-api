@@ -2,10 +2,13 @@ import {
 	Column,
 	CreateDateColumn,
 	Entity,
+	JoinColumn,
 	OneToMany,
+	OneToOne,
 	PrimaryGeneratedColumn
 } from "typeorm";
 
+import { Attachment } from "./attachment.entity";
 import { ChatParticipant } from "./chat-participant.entity";
 import { Message } from "./message.entity";
 
@@ -32,9 +35,6 @@ export class User {
 	})
 	role: UserRole;
 
-	@Column("varchar", { length: 120, nullable: true })
-	avatar_url: string;
-
 	@Column("varchar", { length: 50, unique: true, select: false })
 	email: string;
 
@@ -45,6 +45,18 @@ export class User {
 	last_seen_at: Date;
 
 	// * Relations
+	avatar_attachment_id: Attachment["id"];
+
+	@OneToOne(() => Attachment, () => null, {
+		eager: true
+	})
+	@JoinColumn({
+		name: "avatar_attachment_id",
+		referencedColumnName: "id",
+		foreignKeyConstraintName: "FK_user_avatar"
+	})
+	avatar: Attachment;
+
 	@OneToMany(() => ChatParticipant, chatParticipant => chatParticipant.user)
 	participates: ChatParticipant[];
 

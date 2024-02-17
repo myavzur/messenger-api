@@ -8,6 +8,7 @@ import {
 	UpdateDateColumn
 } from "typeorm";
 
+import { Attachment } from "./attachment.entity";
 import { ChatParticipant } from "./chat-participant.entity";
 import { Message } from "./message.entity";
 
@@ -55,4 +56,7 @@ export class Chat {
 		foreignKeyConstraintName: "FK_chat_last_message"
 	})
 	last_message: Message;
+
+	@OneToMany(() => Attachment, attachment => attachment.chat)
+	attachments?: Attachment[];
 }

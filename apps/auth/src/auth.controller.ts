@@ -2,11 +2,13 @@ import { Controller } from "@nestjs/common";
 import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices";
 
 import { RabbitMQService } from "@app/rabbitmq";
-import { User } from "@app/shared/entities";
+import { Attachment, User } from "@app/shared/entities";
 
 import { AuthService } from "./auth.service";
 import { GetUsersBasedOnLocalChatsDto, LoginDto, RegisterDto } from "./dto";
+import { UpdateUserAvatarPayload } from "./interfaces";
 
+// TODO: Types for RMQ!!!!
 @Controller()
 export class AuthController {
 	constructor(
@@ -15,20 +17,12 @@ export class AuthController {
 	) {}
 
 	// * Users
-	@MessagePattern({ cmd: "get-users" })
-	async getUsers(@Ctx() context: RmqContext) {
-		this.rabbitmqService.acknowledgeMessage(context);
-
-		return await this.authService.getUsers();
-	}
-
 	@MessagePattern({ cmd: "get-users-based-on-chats" })
 	async getUsersBasedOnLocalChats(
 		@Ctx() context: RmqContext,
 		@Payload() payload: GetUsersBasedOnLocalChatsDto
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.getUsersBasedOnLocalChats(payload);
 	}
 
@@ -38,7 +32,6 @@ export class AuthController {
 		@Payload() payload: { account_name: User["account_name"] }
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.getUsersLikeAccountName(payload.account_name);
 	}
 
@@ -48,22 +41,29 @@ export class AuthController {
 		@Payload() payload: { id: User["id"] }
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.getUserById(payload.id);
+	}
+
+	@MessagePattern({ cmd: "update-user-avatar" })
+	async updateUserAvatar(
+		@Ctx() context: RmqContext,
+		@Payload()
+		payload: UpdateUserAvatarPayload
+	) {
+		this.rabbitmqService.acknowledgeMessage(context);
+		return await this.authService.updateUserAvatar(payload);
 	}
 
 	// * Auth
 	@MessagePattern({ cmd: "register" })
 	async register(@Ctx() context: RmqContext, @Payload() payload: RegisterDto) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.register(payload);
 	}
 
 	@MessagePattern({ cmd: "login" })
 	async login(@Ctx() context: RmqContext, @Payload() payload: LoginDto) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.login(payload);
 	}
 
@@ -74,7 +74,6 @@ export class AuthController {
 		@Payload() payload: { token: string }
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.verifyAccessToken(payload);
 	}
 
@@ -84,7 +83,6 @@ export class AuthController {
 		@Payload() payload: { token: string }
 	) {
 		this.rabbitmqService.acknowledgeMessage(context);
-
 		return await this.authService.decodeAccessToken(payload);
 	}
 }

@@ -1,12 +1,17 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
+import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
+import { UpdateUserAvatarPayload } from "apps/auth/src/interfaces";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import { firstValueFrom } from "rxjs";
 import { Readable } from "stream";
 import { Repository } from "typeorm";
 
+import { dataSource } from "@app/postgres/database/data-source";
 import { Attachment, AttachmentTag, User } from "@app/shared/entities";
+import { AttachmentRepository } from "@app/shared/repositories";
 
 import { SaveFileResponse } from "./interfaces";
 
@@ -23,8 +28,10 @@ const allowedAvatarTypes = ["image/png", "image/jpeg"];
 @Injectable()
 export class UploadsService {
 	constructor(
-		@InjectRepository(Attachment)
-		private readonly attachmentRepository: Repository<Attachment>
+		@Inject("AUTH_SERVICE")
+		private readonly authService: ClientProxy,
+		@InjectRepository(AttachmentRepository)
+		private readonly attachmentRepository: AttachmentRepository
 	) {}
 	logger: Logger = new Logger(UploadsService.name);
 
@@ -39,19 +46,14 @@ export class UploadsService {
 			);
 		}
 
-		const saveResult = await this.saveFile(file, tag);
-		const insertResult = await this.attachmentRepository.insert({
-			file_name: saveResult.file_name,
-			file_size: saveResult.file_size,
-			file_type: saveResult.file_type,
-			file_url: saveResult.file_url,
+		const saveFileResult = await this.saveFile(file, tag);
+		const attachmentId = await this.attachmentRepository.createAttachment({
+			...saveFileResult,
 			tag,
-			user: { id: creatorId }
+			creatorId
 		});
-		return {
-			attachment_id: insertResult.raw[0].id,
-			attachment_type: insertResult.raw[0].tag
-		};
+
+		return { attachment_id: attachmentId };
 	}
 
 	async uploadAvatar(creatorId: User["id"], file: Express.Multer.File) {
@@ -61,19 +63,24 @@ export class UploadsService {
 			);
 		}
 
-		const saveResult = await this.saveFile(file, "avatars");
-		const insertResult = await this.attachmentRepository.insert({
-			file_name: saveResult.file_name,
-			file_size: saveResult.file_size,
-			file_type: saveResult.file_type,
-			file_url: saveResult.file_url,
+		const saveFileResult = await this.saveFile(file, "avatars");
+		const attachmentId = await this.attachmentRepository.createAttachment({
+			...saveFileResult,
 			tag: AttachmentTag.AVATAR,
-			user: { id: creatorId }
+			creatorId
 		});
-		return {
-			attachment_id: insertResult.raw[0].id,
-			attachment_type: insertResult.raw[0].tag
-		};
+
+		const updateAvatarResult$ = this.authService.send<any, UpdateUserAvatarPayload>(
+			{ cmd: "update-user-avatar" },
+			{
+				user_id: creatorId,
+				attachment_id: attachmentId
+			}
+		);
+
+		await firstValueFrom(updateAvatarResult$).catch(e => this.logger.error(e));
+
+		return { attachment_id: attachmentId };
 	}
 
 	private async saveFile(
@@ -90,11 +97,10 @@ export class UploadsService {
 		await this.writeFile(outputFile, file.buffer);
 
 		return {
-			file_name: Buffer.from(file.originalname, "latin1").toString("utf8"),
-			file_size: file.size,
-			file_type: file.mimetype,
-			file_url: `/${outputFolder}/${outputName}`,
-			output_file_name: outputName
+			fileName: Buffer.from(file.originalname, "latin1").toString("utf8"),
+			fileSize: file.size,
+			fileType: file.mimetype,
+			fileUrl: `/${outputFolder}/${outputName}`
 		};
 	}
 
@@ -109,7 +115,7 @@ export class UploadsService {
 	}
 
 	/** Write file on disk by specified directory. */
-	private async writeFile(path: string, buffer: Buffer): Promise<void> {
+	private async writeFile(path: fs.PathLike, buffer: Buffer): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const writeStream = fs.createWriteStream(path);
 
@@ -126,8 +132,12 @@ export class UploadsService {
 		});
 	}
 
+	private async deleteFile(path: fs.PathLike) {
+		const result = await fs.promises.unlink(path);
+	}
+
 	/** Create directory if it's not exists. */
-	private async ensureDir(path: string) {
+	private async ensureDir(path: fs.PathLike) {
 		try {
 			await fs.promises.access(path);
 		} catch (err) {

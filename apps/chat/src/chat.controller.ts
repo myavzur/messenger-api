@@ -4,8 +4,8 @@ import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 import { RabbitMQService } from "@app/rabbitmq";
 import { Chat } from "@app/shared/entities";
 
-import { ChatService } from "./chat.service";
 import { GetUserChatsDto } from "./dto";
+import { ChatService } from "./services";
 
 @Controller()
 export class ChatController {

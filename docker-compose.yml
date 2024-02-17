@@ -54,7 +54,7 @@ services:
       context: ./
       dockerfile: ./apps/uploads/Dockerfile
     ports:
-     - 6000:6000
+     - 5123:5123
     env_file:
       - .env
     depends_on:

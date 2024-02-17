@@ -13,6 +13,7 @@ import { UploadsService } from "./uploads.service";
 
 const CWD = process.cwd();
 
+console.log(path.join(__dirname, "..", "public"));
 @Module({
 	imports: [
 		TypeOrmModule.forFeature([Attachment]),

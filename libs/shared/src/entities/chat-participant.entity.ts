@@ -29,6 +29,8 @@ export class ChatParticipant {
 
 	// * Relations
 	chat_id: Chat["id"];
+	user_id: User["id"];
+
 	@ManyToOne(() => Chat, chat => chat.participants, { onDelete: "CASCADE" })
 	@JoinColumn({
 		name: "chat_id",
@@ -37,7 +39,6 @@ export class ChatParticipant {
 	})
 	chat: Chat;
 
-	user_id: User["id"];
 	@ManyToOne(() => User, user => user.participates, {
 		onDelete: "CASCADE",
 		eager: true

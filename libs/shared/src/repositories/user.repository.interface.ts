@@ -5,7 +5,7 @@ import { IBaseRepository } from "./base.repository.interface";
 export interface IGetUsersBasedOnLocalChatsRow {
 	id: User["id"];
 	account_name: User["account_name"];
-	avatar_url: User["avatar_url"];
+	avatar: User["avatar"];
 	chat_id: Chat["id"];
 }
 

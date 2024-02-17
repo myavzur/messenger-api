@@ -2,8 +2,9 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
 import { firstValueFrom } from "rxjs";
+import { In, Repository } from "typeorm";
 
-import { Chat, ChatType, Message, User } from "@app/shared/entities";
+import { Attachment, Chat, ChatType, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
 import { ChatRepository, MessageRepository } from "@app/shared/repositories";
 
@@ -29,7 +30,9 @@ export class ChatService {
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
 		@InjectRepository(MessageRepository)
-		private readonly messageRepository: MessageRepository
+		private readonly messageRepository: MessageRepository,
+		@InjectRepository(Attachment)
+		private readonly attachmentRepository: Repository<Attachment>
 	) {}
 
 	logger: Logger = new Logger(ChatService.name);
@@ -142,11 +145,30 @@ export class ChatService {
 			return;
 		}
 
-		const message = await this.messageRepository.createMessage({
+		const messageId = await this.messageRepository.createMessage({
 			chat,
 			creatorId,
 			text: payload.text,
 			replyForId: payload.replyForId
+		});
+
+		await this.attachmentRepository.update(
+			{
+				id: In(payload.attachmentIds)
+			},
+			{
+				message: { id: messageId },
+				chat: { id: chat.id }
+			}
+		);
+
+		const message = await this.messageRepository.findOne({
+			where: { id: messageId },
+			relations: {
+				reply_for: {
+					user: true
+				}
+			}
 		});
 
 		await this.chatRepository.save({ ...chat, last_message: message });

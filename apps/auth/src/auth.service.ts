@@ -6,13 +6,14 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
-import * as bcrypt from "bcrypt";
 
 import { User } from "@app/shared/entities";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserRepository } from "@app/shared/repositories";
 
 import { GetUsersBasedOnLocalChatsDto, LoginDto, RegisterDto } from "./dto";
+import { comparePasswords, hashPassword } from "./helpers";
+import { UpdateUserAvatarPayload } from "./interfaces";
 
 @Injectable()
 export class AuthService {
@@ -24,10 +25,7 @@ export class AuthService {
 
 	logger: Logger = new Logger(AuthService.name);
 
-	async getUsers() {
-		return await this.userRepository.findAll();
-	}
-
+	// * Get
 	async getUsersBasedOnLocalChats(payload: GetUsersBasedOnLocalChatsDto) {
 		return await this.userRepository.getUsersBasedOnLocalChats(payload.userId);
 	}
@@ -59,7 +57,7 @@ export class AuthService {
 			throw new BadRequestException("An account with that email already exists.");
 		}
 
-		const hashedPassword = await this.hashPassword(payload.password);
+		const hashedPassword = await hashPassword(payload.password);
 
 		const user = await this.userRepository.save({
 			email: payload.email,
@@ -85,7 +83,7 @@ export class AuthService {
 			throw new BadRequestException();
 		}
 
-		if (!this.comparePasswords(payload.password, user.password)) {
+		if (!comparePasswords(payload.password, user.password)) {
 			throw new UnauthorizedException();
 		}
 
@@ -96,16 +94,18 @@ export class AuthService {
 		return { user, access_token: accessToken };
 	}
 
-	// * Security - Passwords
-	async hashPassword(password: string): Promise<string> {
-		return await bcrypt.hash(password, 8);
-	}
+	// * Avatars
+	async updateUserAvatar(payload: UpdateUserAvatarPayload) {
+		const { user_id, attachment_id } = payload;
 
-	async comparePasswords(
-		password: string,
-		hashedPassword: string
-	): Promise<boolean> {
-		return await bcrypt.compare(password, hashedPassword);
+		return await this.userRepository.update(
+			{ id: user_id },
+			{
+				avatar: {
+					id: attachment_id
+				}
+			}
+		);
 	}
 
 	// * Security - Tokens

@@ -25,7 +25,7 @@ export class MessageRepository
 	/** Simply creates new message.
 	 * @returns message - Message with `reply_for` and `user` relations.
 	 */
-	async createMessage(params: ICreateMessageParams): Promise<Message> {
+	async createMessage(params: ICreateMessageParams): Promise<Message["id"]> {
 		const messageConfig: QueryDeepPartialEntity<Message> = {
 			user: { id: params.creatorId },
 			chat: params.chat,
@@ -36,17 +36,7 @@ export class MessageRepository
 			messageConfig.reply_for = { id: params.replyForId };
 		}
 
-		const message = (await this.insert(messageConfig)).identifiers[0];
-
-		return await this.findOne({
-			where: { id: message.id },
-			relations: {
-				reply_for: {
-					user: true
-				},
-				user: true
-			}
-		});
+		return (await this.insert(messageConfig)).identifiers[0].id;
 	}
 
 	/** Deletes MANY messages from ONE chat at time.

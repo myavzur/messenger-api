@@ -18,12 +18,12 @@ import { UserRequest } from "@app/shared/interfaces";
 import { UploadMessageAttachmentQueryDto } from "./dto";
 import { UploadsService } from "./uploads.service";
 
-@Controller()
+@Controller("upload")
 @UseGuards(AuthGuard)
 export class UploadsController {
 	constructor(private readonly uploadsService: UploadsService) {}
 
-	@Post("message-attachment")
+	@Post("m-attachment")
 	@UseInterceptors(FileInterceptor("file"), UserInterceptor)
 	async uploadMessageAttachment(
 		@Req() request: UserRequest,

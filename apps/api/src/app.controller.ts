@@ -20,10 +20,7 @@ import { UserRequest } from "@app/shared/interfaces";
 
 @Controller()
 export class AppController {
-	constructor(
-		@Inject("AUTH_SERVICE") private authService: ClientProxy,
-		@Inject("CHAT_SERVICE") private chatService: ClientProxy
-	) {}
+	constructor(@Inject("AUTH_SERVICE") private authService: ClientProxy) {}
 
 	// Users
 	@Get("users")
@@ -45,7 +42,7 @@ export class AppController {
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)
 	async getUsersBasedOnLocalChats(@Req() request: UserRequest) {
-		return this.authService.send<Pick<User, "account_name" | "avatar_url" | "id">[]>(
+		return this.authService.send<Pick<User, "account_name" | "avatar" | "id">[]>(
 			{ cmd: "get-users-based-on-chats" },
 			{ userId: request.user.id }
 		);

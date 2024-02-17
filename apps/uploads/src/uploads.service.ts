@@ -1,11 +1,15 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
+import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
+import { UpdateUserAvatarPayload } from "apps/auth/src/interfaces";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import { firstValueFrom } from "rxjs";
 import { Readable } from "stream";
 import { Repository } from "typeorm";
 
+import { dataSource } from "@app/postgres/database/data-source";
 import { Attachment, AttachmentTag, User } from "@app/shared/entities";
 
 import { SaveFileResponse } from "./interfaces";
@@ -24,7 +28,9 @@ const allowedAvatarTypes = ["image/png", "image/jpeg"];
 export class UploadsService {
 	constructor(
 		@InjectRepository(Attachment)
-		private readonly attachmentRepository: Repository<Attachment>
+		private readonly attachmentRepository: Repository<Attachment>,
+		@Inject("AUTH_SERVICE")
+		private readonly authService: ClientProxy
 	) {}
 	logger: Logger = new Logger(UploadsService.name);
 
@@ -38,7 +44,6 @@ export class UploadsService {
 				"Invalid file type. Allowed file types: " + allowedAttachmentTypes.join(", ")
 			);
 		}
-
 		const saveResult = await this.saveFile(file, tag);
 		const insertResult = await this.attachmentRepository.insert({
 			file_name: saveResult.file_name,
@@ -70,9 +75,21 @@ export class UploadsService {
 			tag: AttachmentTag.AVATAR,
 			user: { id: creatorId }
 		});
+
+		const attachmentId = insertResult.raw[0].id;
+		const updateAvatarResult$ = this.authService.send<any, UpdateUserAvatarPayload>(
+			{ cmd: "update-user-avatar" },
+			{
+				user_id: creatorId,
+				attachment_id: attachmentId
+			}
+		);
+
+		await firstValueFrom(updateAvatarResult$).catch(e => this.logger.error(e));
+
 		return {
-			attachment_id: insertResult.raw[0].id,
-			attachment_type: insertResult.raw[0].tag
+			attachment_id: attachmentId,
+			attachment_tag: insertResult.raw[0].tag
 		};
 	}
 
@@ -109,7 +126,7 @@ export class UploadsService {
 	}
 
 	/** Write file on disk by specified directory. */
-	private async writeFile(path: string, buffer: Buffer): Promise<void> {
+	private async writeFile(path: fs.PathLike, buffer: Buffer): Promise<void> {
 		return new Promise((resolve, reject) => {
 			const writeStream = fs.createWriteStream(path);
 
@@ -126,8 +143,12 @@ export class UploadsService {
 		});
 	}
 
+	private async deleteFile(path: fs.PathLike) {
+		const result = await fs.promises.unlink(path);
+	}
+
 	/** Create directory if it's not exists. */
-	private async ensureDir(path: string) {
+	private async ensureDir(path: fs.PathLike) {
 		try {
 			await fs.promises.access(path);
 		} catch (err) {

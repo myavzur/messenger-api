@@ -7,7 +7,6 @@ import { RedisModule } from "@app/redis";
 
 import { PresenceGateway } from "./presence.gateway";
 
-// Current Working Direction (node process) = messenger/api
 const CWD = process.cwd();
 
 @Module({

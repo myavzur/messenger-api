@@ -32,7 +32,6 @@ export class UserRepository
 				SELECT
 					users.id,
 					users.account_name,
-					users.avatar_url,
 					chats.id as chat_id
 				FROM users
 				INNER JOIN chats_has_participants participant
@@ -64,7 +63,7 @@ export class UserRepository
 
 		return await this.findOne({
 			where: [{ email }, { account_name: accountName }],
-			select: ["id", "email", "password", "account_name", "avatar_url"]
+			select: ["id", "email", "password", "account_name"]
 		});
 	}
 }

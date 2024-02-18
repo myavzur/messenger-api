@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { GetChatDto, GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 import { DataSource } from "typeorm";
 
 import {
@@ -16,38 +16,9 @@ import {
 	IChatRepository,
 	ICreateChatParams,
 	IDeleteChatParams,
+	IUpdateChatLastMessageParams,
 	IUpdateChatParticipantsParams
 } from "./chat.repository.interface";
-
-const getTemporaryChatData = (fromUser: User, toUser: User) => {
-	return {
-		participants: [
-			{
-				id: "joker",
-				role: ChatParticipantRole.OWNER,
-				user_id: fromUser.id,
-				user: fromUser,
-				chat_id: null,
-				chat: null
-			},
-			{
-				id: "listener",
-				role: ChatParticipantRole.PARTICIPANT,
-				user_id: toUser.id,
-				user: toUser,
-				chat_id: null,
-				chat: null
-			}
-		],
-		participants_count: 2,
-		type: ChatType.TEMP,
-		id: null,
-		title: null,
-		updated_at: null,
-		messages: null,
-		last_message: null
-	};
-};
 
 const MAX_CHATS_PER_PAGE_LIMIT = 20;
 
@@ -90,6 +61,11 @@ export class ChatRepository
 	async deleteChat(params: IDeleteChatParams): Promise<void> {
 		const { chatId } = params;
 		await this.delete({ id: chatId });
+	}
+
+	async updateChatLastMessage(params: IUpdateChatLastMessageParams): Promise<void> {
+		const { chatId, lastMessage } = params;
+		await this.update({ id: chatId }, { last_message: lastMessage });
 	}
 
 	async createParticipants(
@@ -180,48 +156,6 @@ export class ChatRepository
 			totalPages,
 			currentPage
 		};
-	}
-
-	/** Returns chat by `polymorphicId`.
-	 * @param params.currentUserId - User.id of requester
-	 * @param params.polymorphicId - User.id or Chat.id
-	 * @returns Chat of any `type` where `currentUserId` is a participant.
-	 * - If `polymorphicId` is actual Chat.id, then trying to get existing chat by `polymorphicId`.
-	 * - Else if `polymorphicId` is some User.id, then trying to get local chat by `polymorphicId`,
-	 * where `currentUserId` is a participant.
-	 * - Overwise - returns temporary chat with data of opposite user.  */
-	async getChat(params: GetChatDto): Promise<Chat> {
-		const { currentUserId, polymorphicId } = params;
-
-		const getExistingChat = async (chatId: Chat["id"]): Promise<Chat> => {
-			return await this.findOne({
-				where: { id: chatId },
-				relations: {
-					participants: true,
-					last_message: true
-				}
-			});
-		};
-
-		const getTemporaryChat = async (
-			fromUserId: User["id"],
-			toUserId: User["id"]
-		): Promise<Chat> => {
-			const fromUser = await this.dataSource
-				.getRepository(User)
-				.findOneBy({ id: fromUserId });
-			const toUser = await this.dataSource
-				.getRepository(User)
-				.findOneBy({ id: toUserId });
-
-			return getTemporaryChatData(fromUser, toUser);
-		};
-
-		let chat = await getExistingChat(polymorphicId);
-		if (!chat) chat = await this.getLocalChat([currentUserId, polymorphicId]);
-		if (!chat) chat = await getTemporaryChat(currentUserId, polymorphicId);
-
-		return chat;
 	}
 
 	async getUserLocalChats(userId: User["id"]): Promise<Chat[]> {

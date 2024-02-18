@@ -1,23 +1,24 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import * as path from "path";
 
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
-import { Attachment } from "@app/shared/entities";
-import { ChatRepository, MessageRepository } from "@app/shared/repositories";
+import {
+	AttachmentRepository,
+	ChatRepository,
+	MessageRepository
+} from "@app/shared/repositories";
 
 import { ChatController } from "./chat.controller";
 import { ChatGateway } from "./chat.gateway";
-import { ChatService } from "./chat.service";
+import { ChatService, MessageService } from "./services";
 
 const CWD = process.cwd();
 
 @Module({
 	imports: [
-		TypeOrmModule.forFeature([Attachment]),
 		ConfigModule.forRoot({
 			envFilePath: path.join(CWD, ".env")
 		}),
@@ -29,6 +30,13 @@ const CWD = process.cwd();
 		})
 	],
 	controllers: [ChatController],
-	providers: [ChatService, ChatGateway, ChatRepository, MessageRepository]
+	providers: [
+		ChatService,
+		ChatGateway,
+		ChatRepository,
+		MessageService,
+		MessageRepository,
+		AttachmentRepository
+	]
 })
 export class ChatModule {}

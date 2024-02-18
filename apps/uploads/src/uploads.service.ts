@@ -11,6 +11,7 @@ import { Repository } from "typeorm";
 
 import { dataSource } from "@app/postgres/database/data-source";
 import { Attachment, AttachmentTag, User } from "@app/shared/entities";
+import { AttachmentRepository } from "@app/shared/repositories";
 
 import { SaveFileResponse } from "./interfaces";
 
@@ -27,10 +28,10 @@ const allowedAvatarTypes = ["image/png", "image/jpeg"];
 @Injectable()
 export class UploadsService {
 	constructor(
-		@InjectRepository(Attachment)
-		private readonly attachmentRepository: Repository<Attachment>,
 		@Inject("AUTH_SERVICE")
-		private readonly authService: ClientProxy
+		private readonly authService: ClientProxy,
+		@InjectRepository(AttachmentRepository)
+		private readonly attachmentRepository: AttachmentRepository
 	) {}
 	logger: Logger = new Logger(UploadsService.name);
 
@@ -44,19 +45,15 @@ export class UploadsService {
 				"Invalid file type. Allowed file types: " + allowedAttachmentTypes.join(", ")
 			);
 		}
-		const saveResult = await this.saveFile(file, tag);
-		const insertResult = await this.attachmentRepository.insert({
-			file_name: saveResult.file_name,
-			file_size: saveResult.file_size,
-			file_type: saveResult.file_type,
-			file_url: saveResult.file_url,
+
+		const saveFileResult = await this.saveFile(file, tag);
+		const attachmentId = await this.attachmentRepository.createAttachment({
+			...saveFileResult,
 			tag,
-			user: { id: creatorId }
+			creatorId
 		});
-		return {
-			attachment_id: insertResult.raw[0].id,
-			attachment_type: insertResult.raw[0].tag
-		};
+
+		return { attachment_id: attachmentId };
 	}
 
 	async uploadAvatar(creatorId: User["id"], file: Express.Multer.File) {
@@ -66,17 +63,13 @@ export class UploadsService {
 			);
 		}
 
-		const saveResult = await this.saveFile(file, "avatars");
-		const insertResult = await this.attachmentRepository.insert({
-			file_name: saveResult.file_name,
-			file_size: saveResult.file_size,
-			file_type: saveResult.file_type,
-			file_url: saveResult.file_url,
+		const saveFileResult = await this.saveFile(file, "avatars");
+		const attachmentId = await this.attachmentRepository.createAttachment({
+			...saveFileResult,
 			tag: AttachmentTag.AVATAR,
-			user: { id: creatorId }
+			creatorId
 		});
 
-		const attachmentId = insertResult.raw[0].id;
 		const updateAvatarResult$ = this.authService.send<any, UpdateUserAvatarPayload>(
 			{ cmd: "update-user-avatar" },
 			{
@@ -87,10 +80,7 @@ export class UploadsService {
 
 		await firstValueFrom(updateAvatarResult$).catch(e => this.logger.error(e));
 
-		return {
-			attachment_id: attachmentId,
-			attachment_tag: insertResult.raw[0].tag
-		};
+		return { attachment_id: attachmentId };
 	}
 
 	private async saveFile(
@@ -107,11 +97,10 @@ export class UploadsService {
 		await this.writeFile(outputFile, file.buffer);
 
 		return {
-			file_name: Buffer.from(file.originalname, "latin1").toString("utf8"),
-			file_size: file.size,
-			file_type: file.mimetype,
-			file_url: `/${outputFolder}/${outputName}`,
-			output_file_name: outputName
+			fileName: Buffer.from(file.originalname, "latin1").toString("utf8"),
+			fileSize: file.size,
+			fileType: file.mimetype,
+			fileUrl: `/${outputFolder}/${outputName}`
 		};
 	}
 

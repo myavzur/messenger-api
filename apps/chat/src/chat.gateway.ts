@@ -16,7 +16,6 @@ import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
 
-import { ChatService } from "./chat.service";
 import {
 	CreateGroupChatDto,
 	CreateMessageDto,
@@ -25,6 +24,7 @@ import {
 	GetChatHistoryDto,
 	GetUserChatsDto
 } from "./dto";
+import { ChatService } from "./services";
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -105,15 +105,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("get-chat")
 	async handleGetChat(socket: UserSocket, payload: GetChatDto) {
-		return await this.chatService.getChat({
+		const { chat } = await this.chatService.getChat({
 			currentUserId: socket.data.user.id,
 			polymorphicId: payload.polymorphicId
 		});
+		return chat;
 	}
 
 	@SubscribeMessage("get-chat-history")
-	async handleGetChatHistory(_socket: UserSocket, payload: GetChatHistoryDto) {
-		const history = await this.chatService.getChatHistory(payload);
+	async handleGetChatHistory(socket: UserSocket, payload: GetChatHistoryDto) {
+		const history = await this.chatService.getChatHistory(
+			socket.data.user.id,
+			payload
+		);
 
 		return {
 			chat_id: payload.chatId,
@@ -140,22 +144,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(socket: UserSocket, payload: CreateMessageDto) {
 		if (!payload) return null;
 
-		const { chat, message, hasBeenCreated } = await this.chatService.createMessage(
+		const { chatId, message, hasBeenCreated } = await this.chatService.createMessage(
 			socket.data.user.id,
 			payload
 		);
 
 		if (hasBeenCreated) {
-			await this.broadcastToChat(chat.id, "new-chat", chat => chat);
+			await this.broadcastToChat(chatId, "new-chat", chat => chat);
 		}
 
-		await this.broadcastToChat(chat.id, "new-message", {
-			chat_id: chat.id,
+		await this.broadcastToChat(chatId, "new-message", {
+			chat_id: chatId,
 			message
 		});
 
 		return {
-			chat_id: chat.id,
+			chat_id: chatId,
 			message_id: message.id
 		};
 	}

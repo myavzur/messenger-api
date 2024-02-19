@@ -47,7 +47,7 @@ export class MessageRepository
 		creatorId,
 		text,
 		replyForId
-	}: ICreateMessageParams): Promise<Message> {
+	}: ICreateMessageParams): Promise<Message["id"]> {
 		const messageConfig: QueryDeepPartialEntity<Message> = {
 			user: { id: creatorId },
 			chat: { id: chatId },
@@ -58,8 +58,7 @@ export class MessageRepository
 			messageConfig.reply_for = { id: replyForId };
 		}
 
-		const messageId = (await this.insert(messageConfig)).identifiers[0].id;
-		return await this.getMessage({ messageId, chatId });
+		return (await this.insert(messageConfig)).identifiers[0].id;
 	}
 
 	/** Deletes MANY messages from ONE chat at time.

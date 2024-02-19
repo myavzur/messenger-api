@@ -1,2 +1,2 @@
-export * from "./connected-chat-user";
-export * from "./connected-presence-user";
+export * from "./connected-chat-user.interface";
+export * from "./connected-presence-user.interface";

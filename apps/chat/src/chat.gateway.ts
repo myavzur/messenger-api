@@ -7,6 +7,7 @@ import {
 	WebSocketGateway,
 	WebSocketServer
 } from "@nestjs/websockets";
+import { FlushUnusedAttachmentsPayload } from "apps/uploads/src/interfaces";
 import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
@@ -31,6 +32,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	constructor(
 		@Inject("AUTH_SERVICE")
 		private readonly authService: ClientProxy,
+		@Inject("UPLOADS_SERVICE")
+		private readonly uploadsService: ClientProxy,
 		private readonly chatService: ChatService,
 		private readonly cache: RedisService
 	) {}
@@ -63,9 +66,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	async handleDisconnect(socket: UserSocket) {
-		if (socket.data?.user) {
-			await this.cache.deleteChatUser(socket.data.user.id);
-		}
+		const userId = socket.data?.user?.id;
+		if (!userId) return;
+
+		await this.cache.deleteChatUser(userId);
+
+		const some = await firstValueFrom(
+			this.uploadsService.send<any, FlushUnusedAttachmentsPayload>(
+				{
+					cmd: "flush-unused-attachments"
+				},
+				{
+					userId
+				}
+			)
+		).catch(e => {
+			this.logger.error("handleDisconnect: Failed to flush unused attachments");
+			this.logger.error(e);
+		});
+		console.log("flushed");
 	}
 
 	// * Helpers

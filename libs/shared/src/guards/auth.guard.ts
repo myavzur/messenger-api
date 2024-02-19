@@ -20,8 +20,8 @@ export class AuthGuard implements CanActivate {
 		context: ExecutionContext
 	): boolean | Promise<boolean> | Observable<boolean> {
 		// No need to do all of the validation work while request going between microservices.
-		if (context.getType() !== "http") {
-			return false; // Forbidden
+		if (context.getType() === "rpc") {
+			return true;
 		}
 
 		const request: UserRequest = context.switchToHttp().getRequest();

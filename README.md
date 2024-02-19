@@ -50,48 +50,22 @@ $ nvm use
 $ npm ci
 ```
 
+### URLs and Ports 🖥
+
+_`API Gateway`_ - [HTTP:3000](http://localhost:3000)
+_`Auth Service`_ - AMQP
+_`Presence Service`_ - AMQP | WS:4000
+_`Chat Service`_ - AMQP | WS:5000
+_`Uploads Service`_ - AMQP | [HTTP:5123](http://localhost:5123)
+
 ### Software ⚙️
 
-- _`RabbitMQ`_ is running on default `5672` port
-- _`PostgreSQL`_ is running on default `5432` port
-- _`Redis`_ is running on default `6379` port
-
+_`PostgreSQL`_ is running on default `5432` port
+_`RabbitMQ`_ is running on default `5672` port
+_`Redis`_ is running on default `6379` port
 
 ### GUI 💻
 
-- [HTTP:15672](http://localhost:15672) - _`RabbitMQ - Management`_
-
-### Protocols of Microservices 🖥
-
-- [HTTP:3000](http://localhost:3000) - _`API Gateway`_
-- [AMQP](#) - _`Authorization Service`_
-- [WS:4000](#) | [AMQP](#) - _`Presence Service`_
-- [WS:5000](#) | [AMQP](#) - _`Chat Service`_
-- [HTTP:6000](#) | [AMQP](#) - _`Uploads Service`_
-
-## Test
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+_`RabbitMQ - Management`_ - [HTTP:15672](http://localhost:15672)
+- `username` - myavzur
+- `password` - password

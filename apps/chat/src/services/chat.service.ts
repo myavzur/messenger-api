@@ -86,7 +86,7 @@ export class ChatService {
 			}
 		});
 
-		if (!chat) {
+		if (!chat?.id) {
 			// Try to find local chat.
 			chat = await this.chatRepository.getLocalChat([currentUserId, polymorphicId]);
 		}
@@ -112,14 +112,19 @@ export class ChatService {
 	}
 
 	async createMessage(creatorId: User["id"], payload: CreateMessageDto) {
+		this.logger.debug("send message to:", payload.polymorphicId);
+
 		const getChatResult = await this.getChat({
 			currentUserId: creatorId,
 			polymorphicId: payload.polymorphicId
 		});
+
+		this.logger.debug(`Got chat ${getChatResult.chat.id}`);
+
 		let chat = getChatResult.chat;
 
 		if (getChatResult.error) {
-			this.logger.log(`createMessage: ${getChatResult.error}.`);
+			this.logger.debug(`createMessage: ${getChatResult.error}.`);
 			return;
 		}
 
@@ -130,7 +135,10 @@ export class ChatService {
 				participantId: payload.polymorphicId
 			});
 			hasBeenCreated = true;
+			this.logger.debug(`createMessage: Created local chat ${chat.id}.`);
 		}
+
+		this.logger.debug(`Creating message for ${chat.id}`);
 
 		const message = await this.messageService.createMessage({
 			creatorId,
@@ -139,6 +147,8 @@ export class ChatService {
 			attachmentIds: payload.attachmentIds,
 			replyForId: payload.replyForId
 		});
+
+		this.logger.debug(`created ${message.text}`);
 
 		await this.chatRepository.updateChatLastMessage({
 			chatId: chat.id,

@@ -59,6 +59,8 @@ services:
       - .env
     depends_on:
       - auth
+      - postgres
+      - redis
     volumes:
       - ./apps/uploads/public:/usr/src/app/apps/uploads/public
       - .:/usr/src/app # Any change to base folder should be reflected.
@@ -75,6 +77,8 @@ services:
     env_file:
       - .env
     depends_on:
+      - auth
+      - chat
       - rabbitmq
       - postgres
       - redis
@@ -93,6 +97,8 @@ services:
     env_file:
       - .env
     depends_on:
+      - auth
+      - uploads
       - rabbitmq
       - postgres
       - redis
@@ -115,6 +121,7 @@ services:
       - auth
       - presence
       - chat
+      - uploads
     volumes:
       - .:/usr/src/app # Any change to base folder should be reflected.
       - /usr/src/app/node_modules # Take node_modules from docker container.

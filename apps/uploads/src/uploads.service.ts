@@ -1,19 +1,17 @@
-import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
-import { ClientProxy } from "@nestjs/microservices";
-import { InjectRepository } from "@nestjs/typeorm";
-import { UpdateUserAvatarPayload } from "apps/auth/src/interfaces";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { firstValueFrom } from "rxjs";
 import { Readable } from "stream";
-import { Repository } from "typeorm";
 
-import { dataSource } from "@app/postgres/database/data-source";
-import { Attachment, AttachmentTag, User } from "@app/shared/entities";
-import { AttachmentRepository } from "@app/shared/repositories";
+import { AttachmentTag, User } from "@app/shared/entities";
 
-import { SaveFileResponse } from "./interfaces";
+import {
+	FlushUnusedAttachmentsPayload,
+	IConfirmMessageAttachmentsPayload,
+	SaveFileResponse
+} from "./interfaces";
+import { AttachmentService } from "./services";
 
 const allowedAttachmentTypes = [
 	"image/png",
@@ -27,35 +25,56 @@ const allowedAvatarTypes = ["image/png", "image/jpeg"];
 
 @Injectable()
 export class UploadsService {
-	constructor(
-		@Inject("AUTH_SERVICE")
-		private readonly authService: ClientProxy,
-		@InjectRepository(AttachmentRepository)
-		private readonly attachmentRepository: AttachmentRepository
-	) {}
+	constructor(private readonly attachmentService: AttachmentService) {}
+
 	logger: Logger = new Logger(UploadsService.name);
 
+	// * Message Attachments
 	async uploadMessageAttachment(
 		creatorId: User["id"],
 		file: Express.Multer.File,
 		tag: AttachmentTag = AttachmentTag.FILE
 	) {
-		if (!allowedAttachmentTypes.includes(file.mimetype)) {
-			throw new BadRequestException(
-				"Invalid file type. Allowed file types: " + allowedAttachmentTypes.join(", ")
-			);
-		}
-
 		const saveFileResult = await this.saveFile(file, tag);
-		const attachmentId = await this.attachmentRepository.createAttachment({
+		const attachmentId = await this.attachmentService.saveMessageAttachment({
 			...saveFileResult,
-			tag,
-			creatorId
+			creatorId,
+			tag
 		});
 
 		return { attachment_id: attachmentId };
 	}
 
+	async confirmMessageAttachments(payload: IConfirmMessageAttachmentsPayload) {
+		await this.attachmentService.confirmMessageAttachments(payload);
+	}
+
+	async flushUnusedAttachments(payload: FlushUnusedAttachmentsPayload) {
+		const unusedFiles = await this.attachmentService.getUnusedAttachments({
+			userId: payload.userId
+		});
+
+		if (!unusedFiles || unusedFiles.length === 0) {
+			this.logger.debug("flushUnusedAttachments: Nothing to flush. Good!");
+			return;
+		}
+
+		this.logger.debug("flushUnusedAttachments: Flushing...");
+		await Promise.all(
+			unusedFiles.map(file => {
+				const filePath = path.join(__dirname, "..", "public", file.fileUrl);
+				this.deleteFile(filePath);
+			})
+		);
+		this.logger.debug("Files deleted from Disk!");
+
+		await this.attachmentService.forgotUnusedFiles({
+			unusedFileIds: unusedFiles.map(file => file.id),
+			userId: payload.userId
+		});
+	}
+
+	// * Avatars
 	async uploadAvatar(creatorId: User["id"], file: Express.Multer.File) {
 		if (!allowedAvatarTypes.includes(file.mimetype)) {
 			throw new BadRequestException(
@@ -64,25 +83,15 @@ export class UploadsService {
 		}
 
 		const saveFileResult = await this.saveFile(file, "avatars");
-		const attachmentId = await this.attachmentRepository.createAttachment({
+		const attachmentId = await this.attachmentService.updateAvatar({
 			...saveFileResult,
-			tag: AttachmentTag.AVATAR,
 			creatorId
 		});
-
-		const updateAvatarResult$ = this.authService.send<any, UpdateUserAvatarPayload>(
-			{ cmd: "update-user-avatar" },
-			{
-				user_id: creatorId,
-				attachment_id: attachmentId
-			}
-		);
-
-		await firstValueFrom(updateAvatarResult$).catch(e => this.logger.error(e));
 
 		return { attachment_id: attachmentId };
 	}
 
+	// * Private
 	private async saveFile(
 		file: Express.Multer.File,
 		folder: string
@@ -95,6 +104,8 @@ export class UploadsService {
 
 		await this.ensureDir(outputDir);
 		await this.writeFile(outputFile, file.buffer);
+
+		this.logger.debug(`saveFile: Saved file ${file.originalname}`);
 
 		return {
 			fileName: Buffer.from(file.originalname, "latin1").toString("utf8"),
@@ -133,7 +144,12 @@ export class UploadsService {
 	}
 
 	private async deleteFile(path: fs.PathLike) {
-		const result = await fs.promises.unlink(path);
+		try {
+			await fs.promises.unlink(path);
+		} catch (e) {
+			this.logger.error("deleteFile: Failed to delete file!");
+			this.logger.error(e);
+		}
 	}
 
 	/** Create directory if it's not exists. */

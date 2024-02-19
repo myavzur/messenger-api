@@ -16,7 +16,13 @@ export interface IUpdateAttachmentsRelationParams {
 	chatId: Chat["id"];
 }
 
+export interface DeleteAttachmentsParams {
+	attachmentIds: Attachment["id"][];
+	userId: User["id"];
+}
+
 export interface IAttachmentsRepository {
-	createAttachment(params: ICreateAttachmentParams): Promise<Attachment["id"]>;
-	updateAttachmentsRelation(params: IUpdateAttachmentsRelationParams): Promise<void>;
+	createAttachment(params: ICreateAttachmentParams): Promise<Attachment>;
+	updateAttachmentsRelation(params: IUpdateAttachmentsRelationParams): Promise<any>;
+	deleteAttachments(params: DeleteAttachmentsParams): Promise<void>;
 }

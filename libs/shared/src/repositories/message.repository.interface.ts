@@ -24,6 +24,6 @@ export interface IDeleteMessagesParams {
 
 export interface IMessageRepository extends IBaseRepository<Message> {
 	getMessage(params: IGetMessageParams): Promise<Message>;
-	createMessage(params: ICreateMessageParams): Promise<Message>;
+	createMessage(params: ICreateMessageParams): Promise<Message["id"]>;
 	deleteMessages(params: IDeleteMessagesParams): Promise<Message["id"][]>;
 }

@@ -4,6 +4,7 @@ import { DataSource, In } from "typeorm";
 import { Attachment } from "../entities";
 
 import {
+	DeleteAttachmentsParams,
 	IAttachmentsRepository,
 	ICreateAttachmentParams,
 	IUpdateAttachmentsRelationParams
@@ -21,9 +22,7 @@ export class AttachmentRepository
 
 	logger: Logger = new Logger(AttachmentRepository.name);
 
-	async createAttachment(
-		params: ICreateAttachmentParams
-	): Promise<Attachment["id"]> {
+	async createAttachment(params: ICreateAttachmentParams): Promise<Attachment> {
 		const insertResult = await this.insert({
 			file_name: params.fileName,
 			file_size: params.fileSize,
@@ -32,13 +31,15 @@ export class AttachmentRepository
 			tag: params.tag,
 			user: { id: params.creatorId }
 		});
-		return insertResult.raw[0].id;
+		const attachmentId = insertResult.identifiers[0].id;
+
+		return await this.findOne({ where: { id: attachmentId } });
 	}
 
 	async updateAttachmentsRelation(
 		params: IUpdateAttachmentsRelationParams
-	): Promise<void> {
-		await this.update(
+	): Promise<any> {
+		const result = await this.update(
 			{
 				id: In(params.attachmentIds),
 				user: { id: params.currentUserId }
@@ -48,5 +49,14 @@ export class AttachmentRepository
 				chat: { id: params.chatId }
 			}
 		);
+
+		return result;
+	}
+
+	async deleteAttachments(params: DeleteAttachmentsParams): Promise<void> {
+		await this.delete({
+			id: In(params.attachmentIds),
+			user: { id: params.userId }
+		});
 	}
 }

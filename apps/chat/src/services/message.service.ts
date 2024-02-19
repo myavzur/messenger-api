@@ -1,14 +1,12 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
+import { IConfirmMessageAttachmentsPayload } from "apps/uploads/src/interfaces";
+import { firstValueFrom } from "rxjs";
 
 import { Attachment, Chat, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
-import {
-	AttachmentRepository,
-	ChatRepository,
-	MessageRepository
-} from "@app/shared/repositories";
+import { ChatRepository, MessageRepository } from "@app/shared/repositories";
 
 import { DeleteMessagesDto, PaginatedMessagesDto } from "../dto";
 
@@ -17,12 +15,12 @@ const MESSAGES_PER_REQUEST_LIMIT = 70;
 @Injectable()
 export class MessageService {
 	constructor(
+		@Inject("UPLOADS_SERVICE")
+		private readonly uploadsService: ClientProxy,
 		@InjectRepository(ChatRepository)
 		private readonly chatRepository: ChatRepository,
 		@InjectRepository(MessageRepository)
-		private readonly messageRepository: MessageRepository,
-		@InjectRepository(AttachmentRepository)
-		private readonly attachmentRepository: AttachmentRepository
+		private readonly messageRepository: MessageRepository
 	) {}
 
 	logger: Logger = new Logger(MessageService.name);
@@ -81,19 +79,38 @@ export class MessageService {
 		replyForId?: Message["id"];
 		attachmentIds?: Attachment["id"][];
 	}): Promise<Message> {
-		const message = await this.messageRepository.createMessage({
+		const messageId = await this.messageRepository.createMessage({
 			chatId: payload.chatId,
 			creatorId: payload.creatorId,
 			text: payload.text,
 			replyForId: payload.replyForId
 		});
 
-		// Attach files to message.
-		await this.attachmentRepository.updateAttachmentsRelation({
-			attachmentIds: payload.attachmentIds,
+		if (payload.attachmentIds && payload.attachmentIds.length > 0) {
+			const confirmMessageAttachments$ = this.uploadsService.send<
+				any,
+				IConfirmMessageAttachmentsPayload
+			>(
+				{
+					cmd: "confirm-message-attachments"
+				},
+				{
+					attachmentIds: payload.attachmentIds,
+					chatId: payload.chatId,
+					currentUserId: payload.creatorId,
+					messageId: messageId
+				}
+			);
+
+			await firstValueFrom(confirmMessageAttachments$).catch(e => {
+				this.logger.error("createMessage: Failed to confirm attachments");
+				this.logger.error(e);
+			});
+		}
+
+		const message = await this.messageRepository.getMessage({
 			chatId: payload.chatId,
-			messageId: message.id,
-			currentUserId: payload.creatorId
+			messageId
 		});
 
 		return message;

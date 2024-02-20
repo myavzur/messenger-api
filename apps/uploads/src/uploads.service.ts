@@ -4,62 +4,56 @@ import * as fs from "fs";
 import * as path from "path";
 import { Readable } from "stream";
 
-import { AttachmentTag, User } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 
+import { FileService } from "./services";
+import { ConfirmFilesAttachedPayload } from "./services/file.service.interface";
 import {
-	FlushUnusedAttachmentsPayload,
-	IConfirmMessageAttachmentsPayload,
-	SaveFileResponse
-} from "./interfaces";
-import { AttachmentService } from "./services";
+	IUploadsService,
+	SaveFileResult,
+	UploadAvatarPayload,
+	UploadFileResult,
+	UploadMessageAttachmentPayload
+} from "./uploads.service.interface";
 
-const allowedAttachmentTypes = [
-	"image/png",
-	"image/jpeg",
-	"image/gif",
-	"video/mp4",
-	"video/x-m4v",
-	"video/quicktime"
-];
-const allowedAvatarTypes = ["image/png", "image/jpeg"];
+const allowedAvatarTypes = ["image/png", "image/jpeg", "image/gif"];
 
 @Injectable()
-export class UploadsService {
-	constructor(private readonly attachmentService: AttachmentService) {}
+export class UploadsService implements IUploadsService {
+	constructor(private readonly fileService: FileService) {}
 
 	logger: Logger = new Logger(UploadsService.name);
 
-	// * Message Attachments
+	// * Message Files
 	async uploadMessageAttachment(
-		creatorId: User["id"],
-		file: Express.Multer.File,
-		tag: AttachmentTag = AttachmentTag.FILE
-	) {
-		const saveFileResult = await this.saveFile(file, tag);
-		const attachmentId = await this.attachmentService.saveMessageAttachment({
+		payload: UploadMessageAttachmentPayload
+	): Promise<UploadFileResult> {
+		const saveFileResult = await this.saveFile(payload.file, payload.tag);
+
+		const fileId = await this.fileService.createMessageAttachment({
 			...saveFileResult,
-			creatorId,
-			tag
+			userId: payload.userId,
+			tag: payload.tag
 		});
 
-		return { attachment_id: attachmentId };
+		return { file_id: fileId };
 	}
 
-	async confirmMessageAttachments(payload: IConfirmMessageAttachmentsPayload) {
-		await this.attachmentService.confirmMessageAttachments(payload);
+	async confirmFilesAttached(payload: ConfirmFilesAttachedPayload): Promise<void> {
+		await this.fileService.confirmFilesAttached(payload);
 	}
 
-	async flushUnusedAttachments(payload: FlushUnusedAttachmentsPayload) {
-		const unusedFiles = await this.attachmentService.getUnusedAttachments({
-			userId: payload.userId
+	async deleteUnusedFiles(payload: User["id"]): Promise<void> {
+		const unusedFiles = await this.fileService.getUnusedFiles({
+			userId: payload
 		});
 
 		if (!unusedFiles || unusedFiles.length === 0) {
-			this.logger.debug("flushUnusedAttachments: Nothing to flush. Good!");
+			this.logger.debug("deleteUnusedFiles: Nothing to delete. Good!");
 			return;
 		}
 
-		this.logger.debug("flushUnusedAttachments: Flushing...");
+		this.logger.debug("deleteUnusedFiles: Deleting...");
 		await Promise.all(
 			unusedFiles.map(file => {
 				const filePath = path.join(__dirname, "..", "public", file.fileUrl);
@@ -68,34 +62,34 @@ export class UploadsService {
 		);
 		this.logger.debug("Files deleted from Disk!");
 
-		await this.attachmentService.forgotUnusedFiles({
-			unusedFileIds: unusedFiles.map(file => file.id),
-			userId: payload.userId
+		await this.fileService.deleteFiles({
+			fileIds: unusedFiles.map(file => file.id),
+			userId: payload
 		});
 	}
 
 	// * Avatars
-	async uploadAvatar(creatorId: User["id"], file: Express.Multer.File) {
-		if (!allowedAvatarTypes.includes(file.mimetype)) {
+	async uploadAvatar(payload: UploadAvatarPayload): Promise<UploadFileResult> {
+		if (!allowedAvatarTypes.includes(payload.file.mimetype)) {
 			throw new BadRequestException(
 				"Invalid file type. Allowed file types: " + allowedAvatarTypes.join(", ")
 			);
 		}
 
-		const saveFileResult = await this.saveFile(file, "avatars");
-		const attachmentId = await this.attachmentService.updateAvatar({
+		const saveFileResult = await this.saveFile(payload.file, "avatars");
+		const fileId = await this.fileService.createAvatar({
 			...saveFileResult,
-			creatorId
+			userId: payload.userId
 		});
 
-		return { attachment_id: attachmentId };
+		return { file_id: fileId };
 	}
 
 	// * Private
 	private async saveFile(
 		file: Express.Multer.File,
 		folder: string
-	): Promise<SaveFileResponse> {
+	): Promise<SaveFileResult> {
 		const outputFolder = `uploads/${folder}`;
 
 		const outputName = await this.generateFileName(file);

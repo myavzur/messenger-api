@@ -8,13 +8,23 @@ import {
 	PrimaryGeneratedColumn
 } from "typeorm";
 
-import { Attachment } from "./attachment.entity";
 import { ChatParticipant } from "./chat-participant.entity";
+import { File } from "./file.entity";
 import { Message } from "./message.entity";
 
 export enum UserRole {
 	USER = "user",
 	ADMIN = "admin"
+}
+
+export enum UserColor {
+	SOFT_CORAL,
+	SUNSET_ORANGE,
+	LAVENDER_PURPLE,
+	FRESH_LIME,
+	AQUA_MARINE,
+	SKY_BLUE,
+	PINK_ORCHID
 }
 
 @Entity({ name: "users" })
@@ -35,6 +45,13 @@ export class User {
 	})
 	role: UserRole;
 
+	@Column({
+		type: "enum",
+		enum: UserColor,
+		default: UserColor.SUNSET_ORANGE
+	})
+	color: UserColor;
+
 	@Column("varchar", { length: 50, unique: true, select: false })
 	email: string;
 
@@ -45,17 +62,15 @@ export class User {
 	last_seen_at: Date;
 
 	// * Relations
-	avatar_attachment_id: Attachment["id"];
-
-	@OneToOne(() => Attachment, () => null, {
+	@OneToOne(() => File, () => null, {
 		eager: true
 	})
 	@JoinColumn({
-		name: "avatar_attachment_id",
+		name: "avatar_file_id",
 		referencedColumnName: "id",
 		foreignKeyConstraintName: "FK_user_avatar"
 	})
-	avatar: Attachment;
+	avatar: File;
 
 	@OneToMany(() => ChatParticipant, chatParticipant => chatParticipant.user)
 	participates: ChatParticipant[];

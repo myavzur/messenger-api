@@ -6,9 +6,9 @@ import * as path from "path";
 import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
-import { AttachmentRepository } from "@app/shared/repositories";
+import { FileRepository } from "@app/shared/repositories";
 
-import { AttachmentService } from "./services";
+import { FileService } from "./services";
 import { UploadsController } from "./uploads.controller";
 import { UploadsService } from "./uploads.service";
 
@@ -31,6 +31,6 @@ console.log(path.join(__dirname, "..", "public"));
 		PostgresModule
 	],
 	controllers: [UploadsController],
-	providers: [UploadsService, AttachmentService, AttachmentRepository]
+	providers: [UploadsService, FileService, FileRepository]
 })
 export class UploadsModule {}

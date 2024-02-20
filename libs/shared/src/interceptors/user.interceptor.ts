@@ -17,7 +17,7 @@ export class UserInterceptor implements NestInterceptor {
 
 	intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
 		// Skips not HTTP requests. Nothing would be attached.
-		if (context.getType() !== "http") return next.handle();
+		if (context.getType() === "rpc") return next.handle();
 
 		const request: UserRequest = context.switchToHttp().getRequest();
 		const token = extractTokenFromHeaders(request.headers);
@@ -25,7 +25,7 @@ export class UserInterceptor implements NestInterceptor {
 		if (!token) return next.handle();
 
 		return this.authService
-			.send<UserAccessToken>({ cmd: "decode-access-token" }, { token })
+			.send<UserAccessToken, string>({ cmd: "decode-access-token" }, token)
 			.pipe(
 				switchMap(decodedToken => {
 					request.user = decodedToken.user;

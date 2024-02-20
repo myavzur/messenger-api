@@ -5,8 +5,8 @@ import { ChatType, User } from "../entities";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
-	IGetUserByEmailOrAccountNameParams,
-	IGetUsersBasedOnLocalChatsRow,
+	GetUserByEmailOrAccountNamePayload,
+	GetUsersBasedOnLocalChatsRow,
 	IUserRepository
 } from "./user.repository.interface";
 
@@ -25,8 +25,8 @@ export class UserRepository
 	 * @return {Promise<User[]>} The users based on local chats of `userId`
 	 */
 	async getUsersBasedOnLocalChats(
-		userId: User["id"]
-	): Promise<IGetUsersBasedOnLocalChatsRow[]> {
+		payload: User["id"]
+	): Promise<GetUsersBasedOnLocalChatsRow[]> {
 		return await this.dataSource.query(
 			`
 				SELECT
@@ -45,21 +45,21 @@ export class UserRepository
 					participantB.user_id = $1 AND
 					chats.type = $2
 			`,
-			[userId, ChatType.LOCAL]
+			[payload, ChatType.LOCAL]
 		);
 	}
 
-	async getUsersLikeAccountName(accountName: User["account_name"]): Promise<User[]> {
+	async getUsersLikeAccountName(payload: User["account_name"]): Promise<User[]> {
 		return await this.find({
-			where: { account_name: ILike(`%${accountName}%`) }
+			where: { account_name: ILike(`%${payload}%`) }
 		});
 	}
 
 	/** Returns User with `password` and `email` column. */
 	async getUserByEmailOrAccountName(
-		params: IGetUserByEmailOrAccountNameParams
+		payload: GetUserByEmailOrAccountNamePayload
 	): Promise<User> {
-		const { email, accountName } = params;
+		const { email, accountName } = payload;
 
 		return await this.findOne({
 			where: [{ email }, { account_name: accountName }],

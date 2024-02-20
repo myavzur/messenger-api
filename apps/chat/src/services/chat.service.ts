@@ -3,7 +3,13 @@ import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
 import { firstValueFrom } from "rxjs";
 
-import { Chat, ChatType, User } from "@app/shared/entities";
+import {
+	Chat,
+	ChatParticipant,
+	ChatParticipantRole,
+	ChatType,
+	User
+} from "@app/shared/entities";
 import { ChatRepository } from "@app/shared/repositories";
 
 import {
@@ -17,6 +23,7 @@ import {
 } from "../dto";
 import { GetChatHistoryDto } from "../dto";
 import { canAccessChat } from "../helpers";
+import { TemporaryChat } from "../interfaces";
 
 import { MessageService } from "./message.service";
 
@@ -86,19 +93,22 @@ export class ChatService {
 			}
 		});
 
+		this.logger.log(`[getChat]: ${chat ? "Found" : "Couldn't find"} chat by ID.`);
+
 		if (!chat?.id) {
 			// Try to find local chat.
-			chat = await this.chatRepository.getLocalChat([currentUserId, polymorphicId]);
+			chat = await this.chatRepository.getLocalChatBetweenTwoUsers([
+				currentUserId,
+				polymorphicId
+			]);
+			this.logger.log(
+				`[getChat]: ${chat ? "Found" : "Couldn't find"} chat between two users.`
+			);
 		}
 
 		// Validate permission to access Chat if Chat was found.
-		if (chat && !canAccessChat(currentUserId, chat)) {
-			this.logger.warn(
-				`getChat: User hasn't permissions to access requested chat.\n
-					currentUserId: ${currentUserId};
-					polymorphicId: ${polymorphicId};
-				`
-			);
+		if (chat?.id && !canAccessChat(currentUserId, chat)) {
+			this.logger.log(`[getChat]: No access to chat ${chat.title}.`);
 			return {
 				chat: null,
 				error: "NO_ACCESS"
@@ -111,22 +121,28 @@ export class ChatService {
 		};
 	}
 
-	async createMessage(creatorId: User["id"], payload: CreateMessageDto) {
-		this.logger.debug("send message to:", payload.polymorphicId);
+	async getTemporaryChat(withUserId: User["id"]): Promise<TemporaryChat | void> {
+		const withUser = await this.requestUserById(withUserId);
+		if (!withUser) return;
 
+		const chat: TemporaryChat = {
+			participants: [{ user: withUser }],
+			participant_count: 2,
+			type: ChatType.TEMP
+		};
+
+		return chat;
+	}
+
+	async createMessage(creatorId: User["id"], payload: CreateMessageDto) {
 		const getChatResult = await this.getChat({
 			currentUserId: creatorId,
 			polymorphicId: payload.polymorphicId
 		});
 
-		this.logger.debug(`Got chat ${getChatResult.chat.id}`);
-
 		let chat = getChatResult.chat;
 
-		if (getChatResult.error) {
-			this.logger.debug(`createMessage: ${getChatResult.error}.`);
-			return;
-		}
+		if (getChatResult.error) return;
 
 		let hasBeenCreated = false;
 		if (!chat) {
@@ -135,20 +151,16 @@ export class ChatService {
 				participantId: payload.polymorphicId
 			});
 			hasBeenCreated = true;
-			this.logger.debug(`createMessage: Created local chat ${chat.id}.`);
+			this.logger.log(`[createMessage]: Created local chat ${chat.id}.`);
 		}
-
-		this.logger.debug(`Creating message for ${chat.id}`);
 
 		const message = await this.messageService.createMessage({
 			creatorId,
 			chatId: chat.id,
 			text: payload.text,
-			attachmentIds: payload.attachmentIds,
+			fileIds: payload.fileIds,
 			replyForId: payload.replyForId
 		});
-
-		this.logger.debug(`created ${message.text}`);
 
 		await this.chatRepository.updateChatLastMessage({
 			chatId: chat.id,
@@ -181,13 +193,13 @@ export class ChatService {
 		});
 	}
 
-	// * Microservices
-	/** Get user from Auth service. */
-	async getUserById(userId: User["id"]) {
-		const user$ = this.authService.send<User>(
+	// * Microservice requests.
+	async requestUserById(userId: User["id"]): Promise<User | void> {
+		const user$ = this.authService.send<User, User["id"]>(
 			{ cmd: "get-user-by-id" },
-			{ id: userId }
+			userId
 		);
+
 		return await firstValueFrom(user$).catch(e => this.logger.error(e));
 	}
 }

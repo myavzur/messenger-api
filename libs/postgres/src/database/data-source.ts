@@ -1,17 +1,11 @@
 import { DataSource, DataSourceOptions } from "typeorm";
 
-import {
-	Attachment,
-	Chat,
-	ChatParticipant,
-	Message,
-	User
-} from "@app/shared/entities";
+import { Chat, ChatParticipant, File, Message, User } from "@app/shared/entities";
 
 export const dataSourceOptions: DataSourceOptions = {
 	type: "postgres",
 	url: process.env.POSTGRES_URI,
-	entities: [User, Chat, ChatParticipant, Message, Attachment],
+	entities: [User, Chat, ChatParticipant, Message, File],
 	migrations: ["dist/apps/postgres/database/migrations/*.js"] // TODO: MAKE SURE IT WORKS!!!
 };
 

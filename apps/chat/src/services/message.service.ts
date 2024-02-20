@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IConfirmMessageAttachmentsPayload } from "apps/uploads/src/interfaces";
+import { ConfirmFilesAttachedPayload } from "apps/uploads/src/services/file.service.interface";
 import { firstValueFrom } from "rxjs";
 
-import { Attachment, Chat, Message, User } from "@app/shared/entities";
+import { Chat, File, Message, User } from "@app/shared/entities";
 import { pagination } from "@app/shared/helpers";
 import { ChatRepository, MessageRepository } from "@app/shared/repositories";
 
@@ -77,7 +77,7 @@ export class MessageService {
 		creatorId: User["id"];
 		text: Message["text"];
 		replyForId?: Message["id"];
-		attachmentIds?: Attachment["id"][];
+		fileIds?: File["id"][];
 	}): Promise<Message> {
 		const messageId = await this.messageRepository.createMessage({
 			chatId: payload.chatId,
@@ -86,24 +86,24 @@ export class MessageService {
 			replyForId: payload.replyForId
 		});
 
-		if (payload.attachmentIds && payload.attachmentIds.length > 0) {
-			const confirmMessageAttachments$ = this.uploadsService.send<
-				any,
-				IConfirmMessageAttachmentsPayload
+		if (payload.fileIds && payload.fileIds.length > 0) {
+			const confirmFilesAttached$ = this.uploadsService.send<
+				void,
+				ConfirmFilesAttachedPayload
 			>(
 				{
-					cmd: "confirm-message-attachments"
+					cmd: "confirm-files-attached"
 				},
 				{
-					attachmentIds: payload.attachmentIds,
+					fileIds: payload.fileIds,
 					chatId: payload.chatId,
-					currentUserId: payload.creatorId,
+					userId: payload.creatorId,
 					messageId: messageId
 				}
 			);
 
-			await firstValueFrom(confirmMessageAttachments$).catch(e => {
-				this.logger.error("createMessage: Failed to confirm attachments");
+			await firstValueFrom(confirmFilesAttached$).catch(e => {
+				this.logger.error("createMessage: Failed to confirm files");
 				this.logger.error(e);
 			});
 		}

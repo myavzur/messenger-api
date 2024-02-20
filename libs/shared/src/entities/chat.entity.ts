@@ -8,8 +8,8 @@ import {
 	UpdateDateColumn
 } from "typeorm";
 
-import { Attachment } from "./attachment.entity";
 import { ChatParticipant } from "./chat-participant.entity";
+import { File } from "./file.entity";
 import { Message } from "./message.entity";
 
 export enum ChatType {
@@ -57,6 +57,6 @@ export class Chat {
 	})
 	last_message: Message;
 
-	@OneToMany(() => Attachment, attachment => attachment.chat)
-	attachments?: Attachment[];
+	@OneToMany(() => File, file => file.chat)
+	attachments?: File[];
 }

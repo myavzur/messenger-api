@@ -22,14 +22,14 @@ export interface ServerToClientEvents {
 
 // * Client
 export interface ClientToServerEvents {
-	"get-chats": (params: { page: number; limit: number }) => void;
-	"get-chat": (params: { chatId: Chat["id"] }) => void;
-	"get-chat-history": (params: {
+	"get-chats": (payload: { page: number; limit: number }) => void;
+	"get-chat": (payload: { chatId: Chat["id"] }) => void;
+	"get-chat-history": (payload: {
 		chatId: Chat["id"];
 		page: number;
 		limit: number;
 	}) => void;
-	"send-message": (params: {
+	"send-message": (payload: {
 		chatId?: Chat["id"];
 		userId?: User["id"];
 		text: Message["text"];

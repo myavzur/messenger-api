@@ -7,12 +7,11 @@ import {
 	WebSocketGateway,
 	WebSocketServer
 } from "@nestjs/websockets";
-import { FlushUnusedAttachmentsPayload } from "apps/uploads/src/interfaces";
 import { firstValueFrom } from "rxjs";
 import { Server } from "socket.io";
 
 import { RedisService } from "@app/redis";
-import { Chat } from "@app/shared/entities";
+import { Chat, User } from "@app/shared/entities";
 import { extractTokenFromHeaders } from "@app/shared/helpers";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserSocket } from "@app/shared/interfaces";
@@ -35,7 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		@Inject("UPLOADS_SERVICE")
 		private readonly uploadsService: ClientProxy,
 		private readonly chatService: ChatService,
-		private readonly cache: RedisService
+		private readonly redisService: RedisService
 	) {}
 
 	@WebSocketServer()
@@ -47,9 +46,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		const token = extractTokenFromHeaders(socket.handshake.headers);
 		if (!token) return socket.disconnect(true);
 
-		const decodedToken$ = this.authService.send<UserAccessToken>(
+		const decodedToken$ = this.authService.send<UserAccessToken, string>(
 			{ cmd: "decode-access-token" },
-			{ token }
+			token
 		);
 
 		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
@@ -59,7 +58,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 		socket.data.user = decodedToken.user;
 
-		await this.cache.setChatUser({
+		await this.redisService.setChatUser({
 			socketId: socket.id,
 			userId: decodedToken.user.id
 		});
@@ -69,22 +68,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		const userId = socket.data?.user?.id;
 		if (!userId) return;
 
-		await this.cache.deleteChatUser(userId);
+		await this.redisService.deleteChatUser(userId);
 
-		const some = await firstValueFrom(
-			this.uploadsService.send<any, FlushUnusedAttachmentsPayload>(
+		await firstValueFrom(
+			this.uploadsService.send<Promise<void>, User["id"]>(
 				{
-					cmd: "flush-unused-attachments"
+					cmd: "delete-unused-files"
 				},
-				{
-					userId
-				}
+				userId
 			)
 		).catch(e => {
-			this.logger.error("handleDisconnect: Failed to flush unused attachments");
+			this.logger.error("handleDisconnect: Failed to flush unused files");
 			this.logger.error(e);
 		});
-		console.log("flushed");
 	}
 
 	// * Helpers
@@ -101,7 +97,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 		return await Promise.all(
 			chat.participants.map(async chatParticipant => {
-				const connectedUser = await this.cache.getChatUser(chatParticipant.user.id);
+				const connectedUser = await this.redisService.getChatUser(
+					chatParticipant.user.id
+				);
 				if (!connectedUser) return;
 				const data = typeof payload === "function" ? payload(chat) : payload;
 				this.server.to(connectedUser.socketId).emit(event, data);
@@ -124,10 +122,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("get-chat")
 	async handleGetChat(socket: UserSocket, payload: GetChatDto) {
-		const { chat } = await this.chatService.getChat({
-			currentUserId: socket.data.user.id,
+		const currentUserId = socket.data.user.id;
+
+		const { chat, error } = await this.chatService.getChat({
+			currentUserId,
 			polymorphicId: payload.polymorphicId
 		});
+
+		// Returning temporary chat.
+		if (!chat && !error) {
+			const temporaryChat = await this.chatService.getTemporaryChat(
+				payload.polymorphicId
+			);
+			if (!temporaryChat) return { error: "ERROR_ON_CREATE_TEMPORARY_CHAT" };
+			return temporaryChat;
+		}
+
 		return chat;
 	}
 
@@ -161,7 +171,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 	@SubscribeMessage("send-message")
 	async handleSendMessage(socket: UserSocket, payload: CreateMessageDto) {
-		if (!payload) return null;
+		const hasContent = payload.text || payload.fileIds?.length || payload.replyForId;
+		if (!hasContent) return { error: "ERROR_EMPTY_MESSAGE" };
 
 		const { chatId, message, hasBeenCreated } = await this.chatService.createMessage(
 			socket.data.user.id,

@@ -11,7 +11,7 @@ import { Chat } from "./chat.entity";
 import { Message } from "./message.entity";
 import { User } from "./user.entity";
 
-export enum AttachmentTag {
+export enum FileTag {
 	FILE = "file",
 	MEDIA = "media",
 	VOICE = "voice",
@@ -19,8 +19,8 @@ export enum AttachmentTag {
 	AVATAR = "avatar"
 }
 
-@Entity("attachments")
-export class Attachment {
+@Entity("files")
+export class File {
 	@PrimaryGeneratedColumn("uuid")
 	id: string;
 
@@ -29,10 +29,10 @@ export class Attachment {
 
 	@Column({
 		type: "enum",
-		enum: AttachmentTag,
-		default: AttachmentTag.FILE
+		enum: FileTag,
+		default: FileTag.FILE
 	})
-	tag: AttachmentTag;
+	tag: FileTag;
 
 	@Column("varchar")
 	file_url: string;
@@ -47,15 +47,11 @@ export class Attachment {
 	file_type: string; // MimeType
 
 	// * Relations
-	user_id: User["id"];
-	message_id: Message["id"];
-	chat_id: Chat["id"];
-
 	@ManyToOne(() => User, () => null, { onDelete: "SET NULL" })
 	@JoinColumn({
 		name: "user_id",
 		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_attachment_user"
+		foreignKeyConstraintName: "FK_file_user"
 	})
 	user: User;
 
@@ -65,7 +61,7 @@ export class Attachment {
 	@JoinColumn({
 		name: "message_id",
 		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_attachment_message"
+		foreignKeyConstraintName: "FK_file_message"
 	})
 	message?: Message;
 
@@ -75,7 +71,7 @@ export class Attachment {
 	@JoinColumn({
 		name: "chat_id",
 		referencedColumnName: "id",
-		foreignKeyConstraintName: "FK_attachment_chat"
+		foreignKeyConstraintName: "FK_file_chat"
 	})
 	chat?: Chat;
 }

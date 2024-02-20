@@ -1,38 +1,38 @@
-import { GetChatDto, GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
+import { GetUserChatsDto, PaginatedChatsDto } from "apps/chat/src/dto";
 
 import { Chat, ChatType, Message, User } from "../entities";
 
-export interface ICreateChatParams {
+export interface CreateChatPayload {
 	creatorId: User["id"];
 	participantsIds: User["id"][];
-	title?: Chat["title"];
 	type: ChatType;
+	title?: Chat["title"];
 }
 
-export interface IDeleteChatParams {
+export interface DeleteChatPayload {
 	chatId: Chat["id"];
 }
 
-export interface IUpdateChatLastMessageParams {
+export interface UpdateChatLastMessagePayload {
 	chatId: Chat["id"];
 	lastMessage: Message;
 }
 
-export interface IUpdateChatParticipantsParams {
+export interface UpdateChatParticipantsPayload {
 	chatId: Chat["id"];
 	creatorId?: User["id"];
 	participantsIds: User["id"][];
 }
 
 export interface IChatRepository {
-	createChat(params: ICreateChatParams): Promise<Chat>;
-	deleteChat(params: IDeleteChatParams): Promise<void>;
-	updateChatLastMessage(params: IUpdateChatLastMessageParams): Promise<void>;
+	createChat(payload: CreateChatPayload): Promise<Chat>;
+	deleteChat(payload: DeleteChatPayload): Promise<void>;
+	updateChatLastMessage(payload: UpdateChatLastMessagePayload): Promise<void>;
 
-	createParticipants(params: IUpdateChatParticipantsParams): Promise<Chat | null>;
-	deleteParticipants(params: IUpdateChatParticipantsParams): Promise<void>;
+	createParticipants(payload: UpdateChatParticipantsPayload): Promise<Chat | null>;
+	deleteParticipants(payload: UpdateChatParticipantsPayload): Promise<void>;
 
-	getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto>;
-	getLocalChat(userIds: User["id"][]): Promise<Chat>;
-	getUserLocalChats(userId: User["id"]): Promise<Chat[]>;
+	getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto>;
+	getLocalChatBetweenTwoUsers(payload: User["id"][]): Promise<Chat>;
+	getUserLocalChats(payload: User["id"]): Promise<Chat[]>;
 }

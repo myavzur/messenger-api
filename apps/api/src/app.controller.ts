@@ -17,6 +17,7 @@ import { User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";
+import { GetUsersBasedOnLocalChatsRow } from "@app/shared/repositories/user.repository.interface";
 
 @Controller()
 export class AppController {
@@ -32,9 +33,9 @@ export class AppController {
 	async getUsersLikeAccountName(
 		@Query("account_name") account_name: User["account_name"]
 	) {
-		return this.authService.send<User[]>(
+		return this.authService.send<User[], User["account_name"]>(
 			{ cmd: "get-users-like-account-name" },
-			{ account_name }
+			account_name
 		);
 	}
 
@@ -42,9 +43,9 @@ export class AppController {
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)
 	async getUsersBasedOnLocalChats(@Req() request: UserRequest) {
-		return this.authService.send<Pick<User, "account_name" | "avatar" | "id">[]>(
+		return this.authService.send<GetUsersBasedOnLocalChatsRow[], User["id"]>(
 			{ cmd: "get-users-based-on-chats" },
-			{ userId: request.user.id }
+			request.user.id
 		);
 	}
 
@@ -53,9 +54,9 @@ export class AppController {
 	@UseGuards(AuthGuard)
 	@UseInterceptors(UserInterceptor)
 	async getUser(@Req() request: UserRequest) {
-		return this.authService.send<User>(
+		return this.authService.send<User, User["id"]>(
 			{ cmd: "get-user-by-id" },
-			{ id: request.user.id }
+			request.user.id
 		);
 	}
 

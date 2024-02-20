@@ -23,7 +23,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		private readonly authService: ClientProxy,
 		@Inject("CHAT_SERVICE")
 		private readonly chatService: ClientProxy,
-		private readonly cache: RedisService
+		private readonly redisService: RedisService
 	) {}
 
 	@WebSocketServer()
@@ -35,9 +35,9 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		const token = extractTokenFromHeaders(socket.handshake.headers);
 		if (!token) return socket.disconnect(true);
 
-		const decodedToken$ = this.authService.send<UserAccessToken>(
+		const decodedToken$ = this.authService.send<UserAccessToken, string>(
 			{ cmd: "decode-access-token" },
-			{ token }
+			token
 		);
 
 		const decodedToken = await firstValueFrom(decodedToken$).catch(e =>
@@ -47,7 +47,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 
 		socket.data.user = decodedToken.user;
 
-		await this.cache.setPresenceUser({
+		await this.redisService.setPresenceUser({
 			socketId: socket.id,
 			userId: decodedToken.user.id,
 			status: UserStatus.ONLINE
@@ -60,7 +60,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 		const user = socket.data?.user;
 
 		if (user) {
-			await this.cache.deletePresenceUser(user.id);
+			await this.redisService.deletePresenceUser(user.id);
 			// await this.emitStatus(user.id, UserStatus.INVISIBLE);
 		}
 	}
@@ -83,7 +83,7 @@ export class PresenceGateway implements OnGatewayConnection, OnGatewayDisconnect
 					participant => participant.id !== userId
 				).id;
 
-				const connectedUser = await this.cache.getPresenceUser(withUserId);
+				const connectedUser = await this.redisService.getPresenceUser(withUserId);
 				if (!connectedUser) return;
 
 				this.server.to(connectedUser.socketId).emit("new-status-in-local-chat", {

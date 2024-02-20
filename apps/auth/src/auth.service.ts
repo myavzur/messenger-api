@@ -10,13 +10,18 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "@app/shared/entities";
 import { UserAccessToken } from "@app/shared/interfaces";
 import { UserRepository } from "@app/shared/repositories";
+import { GetUsersBasedOnLocalChatsRow } from "@app/shared/repositories/user.repository.interface";
 
-import { GetUsersBasedOnLocalChatsDto, LoginDto, RegisterDto } from "./dto";
+import {
+	AuthResult,
+	IAuthService,
+	UpdateAvatarPayload
+} from "./auth.service.interface";
+import { LoginDto, RegisterDto } from "./dto";
 import { comparePasswords, hashPassword } from "./helpers";
-import { UpdateUserAvatarPayload } from "./interfaces";
 
 @Injectable()
-export class AuthService {
+export class AuthService implements IAuthService {
 	constructor(
 		@InjectRepository(UserRepository)
 		private readonly userRepository: UserRepository,
@@ -25,25 +30,45 @@ export class AuthService {
 
 	logger: Logger = new Logger(AuthService.name);
 
-	// * Get
-	async getUsersBasedOnLocalChats(payload: GetUsersBasedOnLocalChatsDto) {
-		return await this.userRepository.getUsersBasedOnLocalChats(payload.userId);
+	async getUserById(payload: User["id"]) {
+		return this.userRepository.findOneById(payload);
 	}
 
-	async getUsersLikeAccountName(
-		account_name: User["account_name"]
-	): Promise<User[]> {
-		return this.userRepository.getUsersLikeAccountName(account_name);
+	async getUsersLikeAccountName(payload: User["account_name"]): Promise<User[]> {
+		return this.userRepository.getUsersLikeAccountName(payload);
 	}
 
-	async getUserById(id: User["id"]) {
-		return this.userRepository.findOneById(id);
+	async getUsersBasedOnLocalChats(
+		payload: User["id"]
+	): Promise<GetUsersBasedOnLocalChatsRow[]> {
+		return await this.userRepository.getUsersBasedOnLocalChats(payload);
+	}
+
+	// * Tokens
+	async generateAccessToken(payload: User): Promise<string> {
+		return await this.jwtService.signAsync({
+			user: { id: payload.id }
+		} as UserAccessToken);
+	}
+
+	async verifyAccessToken(payload: string): Promise<UserAccessToken> {
+		try {
+			return await this.jwtService.verifyAsync(payload);
+		} catch (e) {
+			throw new UnauthorizedException();
+		}
+	}
+
+	async decodeAccessToken(payload: string): Promise<UserAccessToken> {
+		try {
+			return (await this.jwtService.decode(payload)) as UserAccessToken;
+		} catch (e) {
+			throw new BadRequestException();
+		}
 	}
 
 	// * Authentication
-	async register(
-		payload: RegisterDto
-	): Promise<{ user: User; access_token: string }> {
+	async register(payload: RegisterDto): Promise<AuthResult> {
 		if (payload.password !== payload.password_confirmation) {
 			throw new BadRequestException("Passwords didn't match.");
 		}
@@ -72,12 +97,10 @@ export class AuthService {
 		return { user, access_token: accessToken };
 	}
 
-	async login(payload: LoginDto): Promise<{ user: User; access_token: string }> {
+	async login(payload: LoginDto): Promise<AuthResult> {
 		const user = await this.userRepository.getUserByEmailOrAccountName({
 			email: payload.email
 		});
-
-		this.logger.debug(JSON.stringify(user));
 
 		if (!user) {
 			throw new BadRequestException();
@@ -95,39 +118,16 @@ export class AuthService {
 	}
 
 	// * Avatars
-	async updateUserAvatar(payload: UpdateUserAvatarPayload) {
-		const { user_id, attachment_id } = payload;
+	async updateUserAvatar(payload: UpdateAvatarPayload): Promise<void> {
+		const { user_id, file_id } = payload;
 
-		return await this.userRepository.update(
+		await this.userRepository.update(
 			{ id: user_id },
 			{
 				avatar: {
-					id: attachment_id
+					id: file_id
 				}
 			}
 		);
-	}
-
-	// * Security - Tokens
-	async generateAccessToken(user: User): Promise<string> {
-		return await this.jwtService.signAsync({
-			user: { id: user.id }
-		} as UserAccessToken);
-	}
-
-	async verifyAccessToken({ token }: { token: string }): Promise<UserAccessToken> {
-		try {
-			return await this.jwtService.verifyAsync(token);
-		} catch (e) {
-			throw new UnauthorizedException();
-		}
-	}
-
-	async decodeAccessToken({ token }: { token: string }): Promise<UserAccessToken> {
-		try {
-			return (await this.jwtService.decode(token)) as UserAccessToken;
-		} catch (e) {
-			throw new BadRequestException();
-		}
 	}
 }

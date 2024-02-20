@@ -6,8 +6,8 @@ import { PostgresModule } from "@app/postgres";
 import { RabbitMQModule } from "@app/rabbitmq";
 import { RedisModule } from "@app/redis";
 import {
-	AttachmentRepository,
 	ChatRepository,
+	FileRepository,
 	MessageRepository
 } from "@app/shared/repositories";
 
@@ -40,7 +40,7 @@ const CWD = process.cwd();
 		ChatRepository,
 		MessageService,
 		MessageRepository,
-		AttachmentRepository
+		FileRepository
 	]
 })
 export class ChatModule {}

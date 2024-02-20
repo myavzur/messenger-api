@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ClientProxyFactory, Transport } from "@nestjs/microservices";
 import * as path from "path";
 
-import { RegisterRMQParams } from "./rabbitmq.interface";
+import { RegisterRMQPayload } from "./rabbitmq.interface";
 import { RabbitMQService } from "./rabbitmq.service";
 
 // Current Working Direction (node process) = messenger/api
@@ -19,7 +19,7 @@ const CWD = process.cwd();
 	exports: [RabbitMQService]
 })
 export class RabbitMQModule {
-	static register({ service, queue }: RegisterRMQParams): DynamicModule {
+	static register({ service, queue }: RegisterRMQPayload): DynamicModule {
 		const providers = [
 			{
 				provide: service,

@@ -12,17 +12,15 @@ import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 import { FileInterceptor } from "@nestjs/platform-express";
 
 import { RabbitMQService } from "@app/rabbitmq";
-import { AttachmentTag } from "@app/shared/entities";
+import { User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";
 
 import { UploadMessageAttachmentQueryDto } from "./dto";
-import {
-	FlushUnusedAttachmentsPayload,
-	IConfirmMessageAttachmentsPayload
-} from "./interfaces";
+import { ConfirmFilesAttachedPayload } from "./services/file.service.interface";
 import { UploadsService } from "./uploads.service";
+import { UploadFileResult } from "./uploads.service.interface";
 
 @Controller("upload")
 @UseGuards(AuthGuard)
@@ -47,12 +45,12 @@ export class UploadsController {
 			})
 		)
 		query: UploadMessageAttachmentQueryDto
-	) {
-		return await this.uploadsService.uploadMessageAttachment(
-			request.user.id,
+	): Promise<UploadFileResult> {
+		return await this.uploadsService.uploadMessageAttachment({
 			file,
-			query.tag
-		);
+			userId: request.user.id,
+			tag: query.tag
+		});
 	}
 
 	@Post("avatar")
@@ -60,25 +58,28 @@ export class UploadsController {
 	async uploadAvatar(
 		@Req() request: UserRequest,
 		@UploadedFile() file: Express.Multer.File
-	) {
-		return await this.uploadsService.uploadAvatar(request.user.id, file);
+	): Promise<UploadFileResult> {
+		return await this.uploadsService.uploadAvatar({
+			userId: request.user.id,
+			file
+		});
 	}
 
-	@MessagePattern({ cmd: "confirm-message-attachments" })
-	async confirmMessageAttachments(
+	@MessagePattern({ cmd: "confirm-files-attached" })
+	async confirmFilesAttached(
 		@Ctx() context: RmqContext,
-		@Payload() payload: IConfirmMessageAttachmentsPayload
-	) {
+		@Payload() payload: ConfirmFilesAttachedPayload
+	): Promise<void> {
 		this.rabbitmqService.acknowledgeMessage(context);
-		return await this.uploadsService.confirmMessageAttachments(payload);
+		return await this.uploadsService.confirmFilesAttached(payload);
 	}
 
-	@MessagePattern({ cmd: "flush-unused-attachments" })
-	async flushUnusedAttachments(
+	@MessagePattern({ cmd: "delete-unused-files" })
+	async flushUnusedFiles(
 		@Ctx() context: RmqContext,
-		@Payload() payload: FlushUnusedAttachmentsPayload
-	) {
+		@Payload() payload: User["id"]
+	): Promise<void> {
 		this.rabbitmqService.acknowledgeMessage(context);
-		return await this.uploadsService.flushUnusedAttachments(payload);
+		return await this.uploadsService.deleteUnusedFiles(payload);
 	}
 }

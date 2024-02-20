@@ -2,19 +2,19 @@ import { Chat, ChatParticipantRole, ChatType, Message, User } from "../entities"
 
 import { IBaseRepository } from "./base.repository.interface";
 
-export interface IGetMessageParams {
+export interface GetMessagePayload {
 	chatId: Chat["id"];
 	messageId: Message["id"];
 }
 
-export interface ICreateMessageParams {
+export interface CreateMessagePayload {
 	chatId: Chat["id"];
 	creatorId: User["id"];
 	replyForId?: Message["id"];
-	text: Message["text"];
+	text?: Message["text"];
 }
 
-export interface IDeleteMessagesParams {
+export interface DeleteMessagesPayload {
 	removerId: User["id"];
 	removerChatRole: ChatParticipantRole;
 	chatId: Chat["id"];
@@ -23,7 +23,7 @@ export interface IDeleteMessagesParams {
 }
 
 export interface IMessageRepository extends IBaseRepository<Message> {
-	getMessage(params: IGetMessageParams): Promise<Message>;
-	createMessage(params: ICreateMessageParams): Promise<Message["id"]>;
-	deleteMessages(params: IDeleteMessagesParams): Promise<Message["id"][]>;
+	getMessage(payload: GetMessagePayload): Promise<Message>;
+	createMessage(payload: CreateMessagePayload): Promise<Message["id"]>;
+	deleteMessages(payload: DeleteMessagesPayload): Promise<Message["id"][]>;
 }

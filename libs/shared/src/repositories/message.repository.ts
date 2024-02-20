@@ -6,9 +6,9 @@ import { ChatParticipantRole, ChatType, Message } from "../entities";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
-	ICreateMessageParams,
-	IDeleteMessagesParams,
-	IGetMessageParams,
+	CreateMessagePayload,
+	DeleteMessagesPayload,
+	GetMessagePayload,
 	IMessageRepository
 } from "./message.repository.interface";
 
@@ -23,12 +23,12 @@ export class MessageRepository
 
 	logger: Logger = new Logger(MessageRepository.name);
 
-	async getMessage(params: IGetMessageParams): Promise<Message> {
+	async getMessage(payload: GetMessagePayload): Promise<Message> {
 		return await this.findOne({
 			where: {
-				id: params.messageId,
+				id: payload.messageId,
 				chat: {
-					id: params.chatId
+					id: payload.chatId
 				}
 			},
 			relations: {
@@ -42,20 +42,18 @@ export class MessageRepository
 	/** Simply creates new message.
 	 * @returns message - Message with `reply_for` and `user` relations.
 	 */
-	async createMessage({
-		chatId,
-		creatorId,
-		text,
-		replyForId
-	}: ICreateMessageParams): Promise<Message["id"]> {
+	async createMessage(payload: CreateMessagePayload): Promise<Message["id"]> {
 		const messageConfig: QueryDeepPartialEntity<Message> = {
-			user: { id: creatorId },
-			chat: { id: chatId },
-			text: text.trim()
+			user: { id: payload.creatorId },
+			chat: { id: payload.chatId }
 		};
 
-		if (replyForId) {
-			messageConfig.reply_for = { id: replyForId };
+		if (payload.replyForId) {
+			messageConfig.reply_for = { id: payload.replyForId };
+		}
+
+		if (payload.text) {
+			messageConfig.text = payload.text.trim();
 		}
 
 		return (await this.insert(messageConfig)).identifiers[0].id;
@@ -64,8 +62,8 @@ export class MessageRepository
 	/** Deletes MANY messages from ONE chat at time.
 	 * @returns deletedMessageIDs;
 	 */
-	async deleteMessages(params: IDeleteMessagesParams): Promise<Message["id"][]> {
-		const { chatId, chatType, removerId, removerChatRole, messageIds } = params;
+	async deleteMessages(payload: DeleteMessagesPayload): Promise<Message["id"][]> {
+		const { chatId, chatType, removerId, removerChatRole, messageIds } = payload;
 
 		const findWhereOptions: FindOptionsWhere<Message> = {
 			chat: { id: chatId },

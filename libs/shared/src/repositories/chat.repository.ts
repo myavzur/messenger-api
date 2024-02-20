@@ -13,19 +13,17 @@ import { pagination } from "@app/shared/helpers";
 
 import { BaseRepositoryAbstract } from "./base.repository.abstract";
 import {
+	CreateChatPayload,
+	DeleteChatPayload,
 	IChatRepository,
-	ICreateChatParams,
-	IDeleteChatParams,
-	IUpdateChatLastMessageParams,
-	IUpdateChatParticipantsParams
+	UpdateChatLastMessagePayload,
+	UpdateChatParticipantsPayload
 } from "./chat.repository.interface";
 
 const MAX_CHATS_PER_PAGE_LIMIT = 20;
 
 /* Useful information about subqueries can be found in Typeorm docs:
- * https://orkhan.gitbook.io/typeorm/docs/select-query-builder#using-subqueries
- */
-
+ * https://orkhan.gitbook.io/typeorm/docs/select-query-builder#using-subqueries */
 @Injectable()
 export class ChatRepository
 	extends BaseRepositoryAbstract<Chat>
@@ -37,10 +35,10 @@ export class ChatRepository
 
 	logger: Logger = new Logger(ChatRepository.name);
 
-	async createChat(params: ICreateChatParams): Promise<Chat> {
-		const { creatorId, participantsIds, title, type } = params;
+	async createChat(payload: CreateChatPayload): Promise<Chat> {
+		const { creatorId, participantsIds, title, type } = payload;
 
-		const chat = await this.save({ title: title.trim(), type });
+		const chat = await this.save({ title: title?.trim(), type });
 
 		await this.createParticipants({
 			chatId: chat.id,
@@ -58,20 +56,20 @@ export class ChatRepository
 		});
 	}
 
-	async deleteChat(params: IDeleteChatParams): Promise<void> {
-		const { chatId } = params;
+	async deleteChat(payload: DeleteChatPayload): Promise<void> {
+		const { chatId } = payload;
 		await this.delete({ id: chatId });
 	}
 
-	async updateChatLastMessage(params: IUpdateChatLastMessageParams): Promise<void> {
-		const { chatId, lastMessage } = params;
+	async updateChatLastMessage(payload: UpdateChatLastMessagePayload): Promise<void> {
+		const { chatId, lastMessage } = payload;
 		await this.update({ id: chatId }, { last_message: lastMessage });
 	}
 
 	async createParticipants(
-		params: IUpdateChatParticipantsParams
+		payload: UpdateChatParticipantsPayload
 	): Promise<Chat | null> {
-		const { chatId, creatorId, participantsIds } = params;
+		const { chatId, creatorId, participantsIds } = payload;
 
 		const chat = await this.findOne({
 			where: { id: chatId },
@@ -103,8 +101,8 @@ export class ChatRepository
 		await this.manager.save(chat);
 	}
 
-	async deleteParticipants(params: IUpdateChatParticipantsParams): Promise<void> {
-		const { chatId, participantsIds } = params;
+	async deleteParticipants(payload: UpdateChatParticipantsPayload): Promise<void> {
+		const { chatId, participantsIds } = payload;
 
 		const chat = await this.findOne({
 			where: { id: chatId },
@@ -123,8 +121,8 @@ export class ChatRepository
 	}
 
 	/** Get all chats in which the user participates. */
-	async getUserChats(params: GetUserChatsDto): Promise<PaginatedChatsDto> {
-		const { page, limit, userId } = params;
+	async getUserChats(payload: GetUserChatsDto): Promise<PaginatedChatsDto> {
+		const { page, limit, userId } = payload;
 
 		const currentPage = pagination.getPage(page);
 		const currentLimit = pagination.getLimit(limit, MAX_CHATS_PER_PAGE_LIMIT);
@@ -158,11 +156,11 @@ export class ChatRepository
 		};
 	}
 
-	async getUserLocalChats(userId: User["id"]): Promise<Chat[]> {
+	async getUserLocalChats(payload: User["id"]): Promise<Chat[]> {
 		const chatsIdsQuery = await this.createQueryBuilder("chat")
 			.select("chat.id")
 			.innerJoin("chat.participants", "participant")
-			.where("participant.user_id = :userId", { userId: userId })
+			.where("participant.user_id = :userId", { userId: payload })
 			.andWhere("type = :chatType", { chatType: ChatType.LOCAL })
 			.getQuery();
 
@@ -172,24 +170,39 @@ export class ChatRepository
 			.getMany();
 	}
 
-	// TODO: MAKE IT GREAT AGAIN!
-	async getLocalChat(userIds: User["id"][]): Promise<Chat> {
-		return await this.createQueryBuilder("chat")
-			.leftJoinAndSelect("chat.last_message", "last_message")
-			.leftJoinAndSelect("chat.participants", "participant")
-			.where(qb => {
-				const subQuery = qb
-					.subQuery()
-					.select("participant.chat_id")
-					.from(ChatParticipant, "participant")
-					.where("participant.user_id = :firstUserId", { firstUserId: userIds[0] })
-					.andWhere("participant.user_id = :secondUserId", {
-						secondUserId: userIds[1]
-					})
-					.getQuery();
-				return `chat.id IN ${subQuery}`;
-			})
-			.andWhere("chat.type = :chatType", { chatType: ChatType.LOCAL })
-			.getOne();
+	async getLocalChatBetweenTwoUsers(payload: User["id"][]): Promise<Chat> {
+		if (payload.length !== 2) {
+			this.logger.error(
+				"[getLocalChatBetweenTwoUsers]: Not enough or Too much IDs passed."
+			);
+			return;
+		}
+
+		const chats = await this.dataSource.query(
+			`
+				SELECT chat.id FROM chats chat
+				JOIN chats_has_participants participant1
+					ON participant1.chat_id = chat.id
+				JOIN chats_has_participants participant2
+					ON participant2.chat_id = chat.id
+				WHERE
+					participant1.user_id = $1
+					AND
+					participant2.user_id = $2
+					AND chat.type = 'local'
+					AND chat.participants_count = 2
+			`,
+			[payload[0], payload[1]]
+		);
+
+		const chatId = chats[0]?.id;
+		if (!chatId) return;
+
+		return await this.findOne({
+			where: { id: chatId },
+			relations: {
+				participants: true
+			}
+		});
 	}
 }

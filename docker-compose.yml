@@ -20,7 +20,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-    - ./database/data:/var/lib/postgresql/data # If something goes wrong with container - data would be still saved in local machine inside of db/data
+    - ./postgres/data:/var/lib/postgresql/data # If something goes wrong with container - data would be still saved in local machine inside of db/data
 
   # DATABASE - Caching
   redis:

@@ -9,8 +9,8 @@ import {
 	PrimaryGeneratedColumn
 } from "typeorm";
 
-import { Attachment } from "./attachment.entity";
 import { Chat } from "./chat.entity";
+import { File } from "./file.entity";
 import { User } from "./user.entity";
 
 @Entity("messages")
@@ -22,7 +22,7 @@ export class Message {
 	created_at: Date;
 
 	@Column("text", { nullable: true })
-	text: string;
+	text: string | null;
 
 	// * Relations
 	@OneToOne(() => Message, message => message.reply_for, {
@@ -35,10 +35,10 @@ export class Message {
 	})
 	reply_for: Message;
 
-	@OneToMany(() => Attachment, attachment => attachment.message, {
+	@OneToMany(() => File, file => file.message, {
 		eager: true
 	})
-	attachments: Attachment[];
+	attachments: File[];
 
 	@ManyToOne(() => User, user => user.messages, {
 		onDelete: "CASCADE",

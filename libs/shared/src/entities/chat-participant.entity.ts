@@ -28,9 +28,6 @@ export class ChatParticipant {
 	role: ChatParticipantRole;
 
 	// * Relations
-	chat_id: Chat["id"];
-	user_id: User["id"];
-
 	@ManyToOne(() => Chat, chat => chat.participants, { onDelete: "CASCADE" })
 	@JoinColumn({
 		name: "chat_id",

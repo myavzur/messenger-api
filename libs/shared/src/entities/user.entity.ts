@@ -17,14 +17,14 @@ export enum UserRole {
 	ADMIN = "admin"
 }
 
-export enum UserColor {
-	SOFT_CORAL,
-	SUNSET_ORANGE,
-	LAVENDER_PURPLE,
-	FRESH_LIME,
-	AQUA_MARINE,
-	SKY_BLUE,
-	PINK_ORCHID
+export enum UserTheme {
+	SOFT_CORAL = "soft-coral",
+	SUNSET_ORANGE = "sunset-orange",
+	LAVENDER_PURPLE = "lavender-purple",
+	FRESH_LIME = "fresh-lime",
+	AQUA_MARINE = "aqua-marine",
+	SKY_BLUE = "sky-blue",
+	PINK_ORCHID = "pink-orchid"
 }
 
 @Entity({ name: "users" })
@@ -47,10 +47,10 @@ export class User {
 
 	@Column({
 		type: "enum",
-		enum: UserColor,
-		default: UserColor.SUNSET_ORANGE
+		enum: UserTheme,
+		default: UserTheme.SUNSET_ORANGE
 	})
-	color: UserColor;
+	theme: UserTheme;
 
 	@Column("varchar", { length: 50, unique: true, select: false })
 	email: string;

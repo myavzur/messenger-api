@@ -12,7 +12,7 @@ import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 import { FileInterceptor } from "@nestjs/platform-express";
 
 import { RabbitMQService } from "@app/rabbitmq";
-import { User } from "@app/shared/entities";
+import { File, User } from "@app/shared/entities";
 import { AuthGuard } from "@app/shared/guards";
 import { UserInterceptor } from "@app/shared/interceptors";
 import { UserRequest } from "@app/shared/interfaces";
@@ -81,5 +81,14 @@ export class UploadsController {
 	): Promise<void> {
 		this.rabbitmqService.acknowledgeMessage(context);
 		return await this.uploadsService.deleteUnusedFiles(payload);
+	}
+
+	@MessagePattern({ cmd: "get-avatars" })
+	async getUserAvatars(
+		@Ctx() context: RmqContext,
+		@Payload() payload: User["id"]
+	): Promise<File[]> {
+		this.rabbitmqService.acknowledgeMessage(context);
+		return await this.uploadsService.getAvatars(payload);
 	}
 }

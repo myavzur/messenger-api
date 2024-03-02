@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Readable } from "stream";
 
-import { User } from "@app/shared/entities";
+import { File, User } from "@app/shared/entities";
 
 import { FileService } from "./services";
 import { ConfirmFilesAttachedPayload } from "./services/file.service.interface";
@@ -83,6 +83,10 @@ export class UploadsService implements IUploadsService {
 		});
 
 		return { file_id: fileId };
+	}
+
+	async getAvatars(payload: User["id"]): Promise<File[]> {
+		return await this.fileService.getAvatars(payload);
 	}
 
 	// * Private

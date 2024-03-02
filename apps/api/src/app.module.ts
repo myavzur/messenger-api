@@ -21,6 +21,10 @@ const CWD = process.cwd();
 		RabbitMQModule.register({
 			service: "CHAT_SERVICE",
 			queue: process.env.RABBITMQ_CHAT_QUEUE
+		}),
+		RabbitMQModule.register({
+			service: "UPLOADS_SERVICE",
+			queue: process.env.RABBITMQ_UPLOADS_QUEUE
 		})
 	],
 	controllers: [AppController]

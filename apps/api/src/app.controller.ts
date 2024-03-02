@@ -3,6 +3,7 @@ import {
 	Controller,
 	Get,
 	Inject,
+	Param,
 	Post,
 	Query,
 	Req,
@@ -21,7 +22,10 @@ import { GetUsersBasedOnLocalChatsRow } from "@app/shared/repositories/user.repo
 
 @Controller()
 export class AppController {
-	constructor(@Inject("AUTH_SERVICE") private authService: ClientProxy) {}
+	constructor(
+		@Inject("AUTH_SERVICE") private authService: ClientProxy,
+		@Inject("UPLOADS_SERVICE") private uploadsService: ClientProxy
+	) {}
 
 	// Users
 	@Get("users")
@@ -37,6 +41,11 @@ export class AppController {
 			{ cmd: "get-users-like-account-name" },
 			account_name
 		);
+	}
+
+	@Get("users/:id/avatars")
+	async getUserAvatars(@Param("id") id: User["id"]) {
+		return this.uploadsService.send<File[], User["id"]>({ cmd: "get-avatars" }, id);
 	}
 
 	@Get("users/local-chats")

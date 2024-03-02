@@ -9,7 +9,7 @@ import {
 	GetUnusedFilesPayload,
 	GetUnusedFilesResult
 } from "@app/redis/redis.service.interface";
-import { File, FileTag } from "@app/shared/entities";
+import { File, FileTag, User } from "@app/shared/entities";
 import { FileRepository } from "@app/shared/repositories";
 import { CreateFilePayload } from "@app/shared/repositories/file.repository.interface";
 
@@ -101,5 +101,16 @@ export class FileService implements IFileService {
 		await firstValueFrom(updateAvatarResult$).catch(e => this.logger.error(e));
 
 		return file.id;
+	}
+
+	async getAvatars(payload: User["id"]): Promise<File[]> {
+		return await this.fileRepository.find({
+			where: {
+				user: { id: payload }
+			},
+			order: {
+				created_at: "DESC"
+			}
+		});
 	}
 }
